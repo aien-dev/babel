@@ -101,6 +101,4 @@ The only shell is in `build.sh` and `tests/run.sh`, which coordinate the build a
 
 ## Licence
 
-Babel's own source is Apache-2.0 with the LLVM exception ([LICENSE](LICENSE), [NOTICE](NOTICE)).
-
-**Combined-work disclosure:** `build.sh` compiles babel together with `sha256.om` from aien-dev/omega-mv (commit `4d414574`, `src/source-aware/vendor/sha256.om`), which is **AGPL-3.0-or-later**. The built `build/babel` binary is therefore a combined work, and distributing it is subject to the AGPL. The repository does not contain that file; `build.sh` fetches it at the pinned commit. Whether to replace it with an Apache-licensed Omega SHA-256 is an open decision.
+Apache-2.0 with the LLVM exception ([LICENSE](LICENSE), [NOTICE](NOTICE)). `build.sh` compiles babel's source together with two Apache-2.0 files from aien-dev/omega-mv at `0b77e6ea2`: the OM-2 compiler `seed/out/omc` and the SHA-256 unit `om/sha256/sha256-om2.om`. It checks the sha256 digest of both files.

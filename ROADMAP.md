@@ -14,5 +14,4 @@ Nothing in this file is implemented unless the README matrix says so. Each step 
 | R4 | Independent validation per target (a second checker besides the three-leg differential) | #623 |
 | R5 | Native Omega adapter entry points replacing the Python dispatchers | #624 lanes |
 | R6 | An environment argument for Omega `execprog`, removing `/usr/bin/env` | omega-mv compiler (batch process) |
-| R7 | Apache-licensed Omega SHA-256, or another licence decision for `sha256.om` | Drake |
-| R8 | Richer UI on top of `report.json` (the CLI stays the reference) | — |
+| R7 | Richer UI on top of `report.json` (the CLI stays the reference) | — |

@@ -86,18 +86,19 @@ if lt fo 0
 c = fclose int fi
 ret fo
 end
-hinit
+hx = new uchar 104 0
+hd = new uchar 32 0
+b = new uchar 262144 0
+sha256_init hx
 t = ulong 0
 while true bound 999999
-r = read int fi Fb 0 262144
+r = read int fi b 0 262144
 if le r 0
 break
 end
 n = ulong r
-for i ulong n
-hbyte get Fb i
-end
-w = write int fo Fb 0 n
+sha256_update hx part b 0 n
+w = write int fo b 0 n
 if ne w r
 c = fclose int fi
 c = fclose int fo
@@ -105,7 +106,10 @@ ret -5
 end
 t = add t n
 end
-finish
+sha256_final hx hd
+for i ulong 32
+put Hash i get hd i
+end
 c = fclose int fi
 c = fclose int fo
 ret long t
@@ -117,20 +121,24 @@ fi = fopen Ob p0 sub p1 p0 0 0
 if lt fi 0
 ret fi
 end
-hinit
+hx = new uchar 104 0
+hd = new uchar 32 0
+b = new uchar 262144 0
+sha256_init hx
 t = ulong 0
 while true bound 999999
-r = read int fi Fb 0 262144
+r = read int fi b 0 262144
 if le r 0
 break
 end
 n = ulong r
-for i ulong n
-hbyte get Fb i
-end
+sha256_update hx part b 0 n
 t = add t n
 end
-finish
+sha256_final hx hd
+for i ulong 32
+put Hash i get hd i
+end
 c = fclose int fi
 ret long t
 end

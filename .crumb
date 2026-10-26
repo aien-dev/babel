@@ -9,27 +9,27 @@
           "purpose": "sample input mixing S1 and unsupported code"
         },
         {
-          "digest": "e036b1897b45999f38ada40b1ba5bf0e5b74b912cc23eb01af61e8fb159dc67d",
-          "last_commit": "3d13ecf",
+          "digest": "a7d728a20559ca35eedad6b7de962b45a98668a39463eb7f6452dc47b4390238",
+          "last_commit": "12fcc43",
           "name": "src",
           "purpose": "babel driver in Omega, compiled in file order by build.sh"
         },
         {
-          "digest": "25d38455edb536ffc5726f0ebd7703e8fb0e019cb0d82166e4beac3e83eb0f14",
-          "last_commit": "",
+          "digest": "7082d51f45e8e1ee8af310e499ba4e701e456065b0a92860c6fea66b23f45b83",
+          "last_commit": "12fcc43",
           "name": "tests",
           "purpose": "independent checks of babel output, incl. mutated-oracle negative control"
         }
       ],
-      "children_root": "sha256:2054575fe809d6ad41f25149a3fc56655ece9d51612fc8f676d3f1ee4d6d5f86",
-      "compiled_at": "2026-10-26T20:47:25Z",
+      "children_root": "sha256:2cbd1ce44f4fe07f85ab08dc2689c4d1777098c50776c872522f9de2219eee7e",
+      "compiled_at": "2026-10-26T20:53:05Z",
       "compiler": "crumb-compile/1",
-      "digest": "sha256:30c0a8862d97642d3be501dd41bbb16894a7c928bed0ad3a65c0271de8ff0fc3",
+      "digest": "sha256:c2235a3f156d9cb0b5e688a20cdfc0f8f6a0a148b75f8dd4f0dbb60911fdec73",
       "evidence_files": 0,
       "evidence_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "files": 22,
-      "generated_at_commit": "3d13ecfc624f47e081807c891bc650bf537ddbbe",
-      "source_tree": "sha256:3a840b3d8b9db7ad83062e404623135e9ef6e24da87a3222c709a6cfd121d71b"
+      "files": 30,
+      "generated_at_commit": "12fcc43fdd5d0c0304a9f3bb7e6b876a55de0b1e",
+      "source_tree": "sha256:2f4b9f97bfa45a0f14368ec906e8a361b2baf4a7efd1862f48c3cab06a9a05f7"
     }
   },
   "name": "babel",
