@@ -1,0 +1,19 @@
+{
+  "extensions": {
+    "generated": {
+      "children": [],
+      "children_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "compiled_at": "2026-10-26T20:47:25Z",
+      "compiler": "crumb-compile/1",
+      "digest": "sha256:25d38455edb536ffc5726f0ebd7703e8fb0e019cb0d82166e4beac3e83eb0f14",
+      "evidence_files": 0,
+      "evidence_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "files": 0,
+      "generated_at_commit": "3d13ecfc624f47e081807c891bc650bf537ddbbe",
+      "source_tree": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "name": "babel-tests",
+  "purpose": "independent checks of babel output, incl. mutated-oracle negative control",
+  "schema_version": "1.0.0"
+}

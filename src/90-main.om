@@ -246,12 +246,24 @@ put Adn 0 get Psn 0
 ret 1000
 end
 
+note a terminal: character device (st_mode byte 17) whose st_rdev major (bytes 32..33,
+note bits 8..19) is 4 (tty), 5 (/dev/tty, ptmx) or 136..143 (pts); /dev/null (major 1) is not
 fn istty fd int to bool
 r = fstat fd Sb 0 128
 if lt r 0
 ret false
 end
-ret eq and get Sb 17 240 32
+if ne and get Sb 17 240 32
+ret false
+end
+mj = or ulong get Sb 33 shl and ulong get Sb 34 15 8
+if eq mj 4
+ret true
+end
+if eq mj 5
+ret true
+end
+ret and ge mj 136 le mj 143
 end
 
 note interactive target picker on stdin/stderr

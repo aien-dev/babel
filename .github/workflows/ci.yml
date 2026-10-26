@@ -1,0 +1,50 @@
+# babel CI: build the pinned adapters (aien-dev/omega-mv universal/624-g1-integration 2d4c6407)
+# on a GitHub-hosted arm64 machine, build babel with the pinned OM-2 omc, and run tests/run.sh
+# (six targets, independent cmp of the three legs, the mutated-oracle negative control, lint, JSON).
+# Host evidence on a GitHub runner, not Spark/GB10 qualification.
+name: babel
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: aien-dev/omega-mv (adapters at 2d4c6407; omc pin at main 0b77e6ea2; sha256.om at 4d414574)
+        run: |
+          git clone --quiet https://github.com/aien-dev/omega-mv.git ../omega-mv
+          git -C ../omega-mv fetch --quiet origin universal/624-g1-integration
+          git -C ../omega-mv checkout --quiet 2d4c640702c82b8deb8a296407aadf660dac7fc7
+          git -C ../omega-mv cat-file -e 0b77e6ea2^{commit}
+          git -C ../omega-mv cat-file -e 4d41457466c42ccb52f405915fd95da469a439e3^{commit}
+          git clone --quiet https://github.com/aien-dev/omega-bridge.git ../omega-bridge
+      - name: Go 1.27.3 and Zig 0.17.0 (sha256 checked against the official release indexes)
+        run: |
+          mkdir -p ../toolchains && cd ../toolchains
+          python3 - <<'EOF'
+          import hashlib, json, urllib.request
+          go = [r for r in json.load(urllib.request.urlopen('https://go.dev/dl/?mode=json&include=all')) if r['version'] == 'go1.27.3'][0]
+          f = [x for x in go['files'] if x['os'] == 'linux' and x['arch'] == 'arm64' and x['kind'] == 'archive'][0]
+          d = urllib.request.urlopen('https://go.dev/dl/' + f['filename']).read(); assert hashlib.sha256(d).hexdigest() == f['sha256']
+          open('go.tgz', 'wb').write(d)
+          z = json.load(urllib.request.urlopen('https://ziglang.org/download/index.json'))['0.17.0']['aarch64-linux']
+          d = urllib.request.urlopen(z['tarball']).read(); assert hashlib.sha256(d).hexdigest() == z['shasum']
+          open('zig.txz', 'wb').write(d)
+          EOF
+          tar xzf go.tgz && mkdir zig && tar xJf zig.txz -C zig --strip-components=1
+          echo "GO=$PWD/go/bin/go" >> "$GITHUB_ENV"; echo "GOFMT=$PWD/go/bin/gofmt" >> "$GITHUB_ENV"; echo "ZIG=$PWD/zig/zig" >> "$GITHUB_ENV"
+      - name: machine
+        run: uname -a; nproc; cc --version | head -1; g++ --version | head -1; python3 --version; rustc --version; cargo --version; $GO version; $ZIG version
+      - name: build the adapters (omega-mv test-translation-g3)
+        run: |
+          B="$(cd .. && pwd)/omega-bridge"
+          cd ../omega-mv && make -f mk/translation.mk test-translation-g3 SA_SEED_REPO="$B" OMEGA_BRIDGE_REPO="$B" GOTOOLCHAIN=local
+      - name: build babel
+        run: OMEGA_MV="$(cd .. && pwd)/omega-mv" ./build.sh
+      - name: tests
+        run: BABEL_ADAPTERS="$(cd .. && pwd)/omega-mv" tests/run.sh

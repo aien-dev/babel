@@ -22,3 +22,11 @@ This software is licensed under the Apache License, Version 2.0 with LLVM
 Exceptions. The exception permits compiled object code derived from this
 software to be distributed under terms of the recipient's choosing, and
 resolves the GPLv2 patent/indemnity conflict described in the exception text.
+
+COMBINED-WORK DISCLOSURE (babel):
+babel's source in this repository is Apache-2.0 with LLVM exception. build.sh
+compiles it together with sha256.om from aien-dev/omega-mv (commit
+4d41457466c42ccb52f405915fd95da469a439e3, src/source-aware/vendor/sha256.om),
+which is licensed AGPL-3.0-or-later and is NOT included in this repository.
+The resulting build/babel binary is a combined work; distributing it is
+subject to the AGPL-3.0-or-later. Replacing sha256.om is an open decision.

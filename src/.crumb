@@ -1,0 +1,19 @@
+{
+  "extensions": {
+    "generated": {
+      "children": [],
+      "children_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "compiled_at": "2026-10-26T20:47:25Z",
+      "compiler": "crumb-compile/1",
+      "digest": "sha256:e036b1897b45999f38ada40b1ba5bf0e5b74b912cc23eb01af61e8fb159dc67d",
+      "evidence_files": 0,
+      "evidence_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "files": 8,
+      "generated_at_commit": "3d13ecfc624f47e081807c891bc650bf537ddbbe",
+      "source_tree": "sha256:96b5ac0e60a24e94a778fcf45de175b24fbed82c8b5f4bd591784daad163c04e"
+    }
+  },
+  "name": "babel-src",
+  "purpose": "babel driver in Omega, compiled in file order by build.sh",
+  "schema_version": "1.0.0"
+}

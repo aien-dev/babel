@@ -1,0 +1,19 @@
+{
+  "extensions": {
+    "generated": {
+      "children": [],
+      "children_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "compiled_at": "2026-10-26T20:47:25Z",
+      "compiler": "crumb-compile/1",
+      "digest": "sha256:af8fe5d090009428c3a7f7a6207bb8b53d6b2ee9ffd1c2c06e494d04f36fd119",
+      "evidence_files": 0,
+      "evidence_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "files": 4,
+      "generated_at_commit": "3d13ecfc624f47e081807c891bc650bf537ddbbe",
+      "source_tree": "sha256:dd0f59c5a685c75ae7d329a761aee675d5228fb48ae0fbc578d6c245c4d4fca9"
+    }
+  },
+  "name": "babel-examples",
+  "purpose": "sample input mixing S1 and unsupported code",
+  "schema_version": "1.0.0"
+}

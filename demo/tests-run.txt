@@ -1,0 +1,31 @@
+PASS lint
+PASS --version
+PASS no path exits 2
+PASS no --to without a terminal exits 64
+PASS rust: exit 0
+PASS rust: --json and report.json parse
+PASS rust: verdicts 5 TRANSLATED / 7 UNSUPPORTED / 5 MISSING / 0 FAIL / 0 NOT_RUN / 2 ABSORBED
+PASS rust: independent cmp: 3 legs byte-identical, one line per vector, 5 units
+PASS c: exit 0
+PASS c: --json and report.json parse
+PASS c: verdicts 5 TRANSLATED / 7 UNSUPPORTED / 5 MISSING / 0 FAIL / 0 NOT_RUN / 2 ABSORBED
+PASS c: independent cmp: 3 legs byte-identical, one line per vector, 5 units
+PASS python: exit 0
+PASS python: --json and report.json parse
+PASS python: verdicts 5 TRANSLATED / 7 UNSUPPORTED / 5 MISSING / 0 FAIL / 0 NOT_RUN / 2 ABSORBED
+PASS python: independent cmp: 3 legs byte-identical, one line per vector, 5 units
+PASS cpp: exit 0
+PASS cpp: --json and report.json parse
+PASS cpp: verdicts 5 TRANSLATED / 7 UNSUPPORTED / 5 MISSING / 0 FAIL / 0 NOT_RUN / 2 ABSORBED
+PASS cpp: independent cmp: 3 legs byte-identical, one line per vector, 5 units
+PASS zig: exit 0
+PASS zig: --json and report.json parse
+PASS zig: verdicts 5 TRANSLATED / 7 UNSUPPORTED / 5 MISSING / 0 FAIL / 0 NOT_RUN / 2 ABSORBED
+PASS zig: independent cmp: 3 legs byte-identical, one line per vector, 5 units
+PASS go: exit 0
+PASS go: --json and report.json parse
+PASS go: verdicts 5 TRANSLATED / 7 UNSUPPORTED / 5 MISSING / 0 FAIL / 0 NOT_RUN / 2 ABSORBED
+PASS go: independent cmp: 3 legs byte-identical, one line per vector, 5 units
+PASS negative control: mutated oracle gives FAIL (exit 1): FAIL Omega leg differs from the original C on 127 of 145 vectors (see diff/fold/)
+PASS negative control: exit 1
+failures: 0

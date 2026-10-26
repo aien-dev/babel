@@ -1,0 +1,38 @@
+{
+  "extensions": {
+    "generated": {
+      "children": [
+        {
+          "digest": "af8fe5d090009428c3a7f7a6207bb8b53d6b2ee9ffd1c2c06e494d04f36fd119",
+          "last_commit": "3d13ecf",
+          "name": "examples",
+          "purpose": "sample input mixing S1 and unsupported code"
+        },
+        {
+          "digest": "e036b1897b45999f38ada40b1ba5bf0e5b74b912cc23eb01af61e8fb159dc67d",
+          "last_commit": "3d13ecf",
+          "name": "src",
+          "purpose": "babel driver in Omega, compiled in file order by build.sh"
+        },
+        {
+          "digest": "25d38455edb536ffc5726f0ebd7703e8fb0e019cb0d82166e4beac3e83eb0f14",
+          "last_commit": "",
+          "name": "tests",
+          "purpose": "independent checks of babel output, incl. mutated-oracle negative control"
+        }
+      ],
+      "children_root": "sha256:2054575fe809d6ad41f25149a3fc56655ece9d51612fc8f676d3f1ee4d6d5f86",
+      "compiled_at": "2026-10-26T20:47:25Z",
+      "compiler": "crumb-compile/1",
+      "digest": "sha256:30c0a8862d97642d3be501dd41bbb16894a7c928bed0ad3a65c0271de8ff0fc3",
+      "evidence_files": 0,
+      "evidence_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "files": 22,
+      "generated_at_commit": "3d13ecfc624f47e081807c891bc650bf537ddbbe",
+      "source_tree": "sha256:3a840b3d8b9db7ad83062e404623135e9ef6e24da87a3222c709a6cfd121d71b"
+    }
+  },
+  "name": "babel",
+  "purpose": "Omega-driven code translator CLI: C17 S1 -> rust/c/python/cpp/zig/go with three-leg differential verdicts",
+  "schema_version": "1.0.0"
+}
