@@ -16,7 +16,7 @@ bad() { echo "FAIL $*"; fails=$((fails + 1)); }
 
 # 1. lint: a statement starting with an unknown name silently becomes an assignment in
 #    OM-2, so every bare statement word must be a defined function or a host word.
-awk '/^fn /{print $2}' "$here"/build/sha256.om "$here"/src/*.om | sort -u > "$work/fns"
+awk '/^fn /{print $2}' "$here"/build/babel.om | sort -u > "$work/fns"
 cat "$here"/src/*.om | awk '$1 ~ /^[a-z][a-z0-9]*$/ && $2 != "=" {print $1}' | sort -u \
   | grep -vxF -f "$work/fns" \
   | grep -vxE 'if|while|for|end|else|ret|put|break|continue|note|text|global|fn|elif|exit|reset' > "$work/lint"

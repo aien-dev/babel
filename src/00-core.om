@@ -11,6 +11,7 @@ global Dn uchar 65536
 global Sb uchar 256
 global Ag uchar 8192
 global Cap ulong 1
+global Hash uchar 32
 
 fn mark to ulong
 ret get Ol 0

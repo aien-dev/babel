@@ -732,7 +732,6 @@ ret true
 end
 
 fn main to int
-constants
 envinit
 put Rtn 0 0
 r = args
@@ -765,10 +764,10 @@ eputs EBadL
 ret 2
 end
 end
-ret int run
+ret int brun
 end
 
-fn run to ulong
+fn brun to ulong
 put Col 0 0
 if eq get Jsn 0 0
 if istty 1

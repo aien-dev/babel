@@ -7,8 +7,8 @@ Babel is written in Omega (`src/*.om`). This file records every outside program 
 | Dependency | Version / pin | Purpose | Omega replacement |
 |---|---|---|---|
 | omc (OM-2 seed compiler) | aien-dev/omega-mv `0b77e6ea2:seed/out/omc`, sha256 `2c82480596bbdc50cda9626866209ef662d5834f278f839ff4ce0250c495029f` | Compiles babel | It is Omega's own compiler. Moves with the omega-mv reseeds. |
-| sha256.om | aien-dev/omega-mv `4d41457466c42ccb52f405915fd95da469a439e3:src/source-aware/vendor/sha256.om`, sha256 `12d492b5f99b47b1e525067e1660c7cedbf6b414032cfc8b7e174919a28c052c`, **AGPL-3.0-or-later** | SHA-256 of input files and Omega units | Already Omega. The open question is licence: the built binary is a combined work (see README). |
-| git, sha256sum, sh | Ubuntu 24.04 | `build.sh` fetches the pins and checks the compiler digest | Coordination only, not part of babel |
+| sha256-om2.om | aien-dev/omega-mv `0b77e6ea2:om/sha256/sha256-om2.om`, sha256 `dbf002dd6aa36585632b9d01d98ac3f0bd2fa0f0475082940de53638847994bb`, Apache-2.0 | SHA-256 of input files and Omega units (FIPS 180-4, the om-units SHA256-PARITY cut-over unit) | Already Omega. `build.sh` drops its four `export` markers (library-mode only) and changes nothing else. |
+| git, sha256sum, sed, sh | Ubuntu 24.04 | `build.sh` fetches the pins, checks their digests and concatenates the units | Coordination only, not part of babel |
 
 ## Run path (programs babel spawns)
 

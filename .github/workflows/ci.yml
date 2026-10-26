@@ -15,13 +15,12 @@ jobs:
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
-      - name: aien-dev/omega-mv (adapters at 2d4c6407; omc pin at main 0b77e6ea2; sha256.om at 4d414574)
+      - name: aien-dev/omega-mv (adapters at 2d4c6407; omc and sha256-om2.om at main 0b77e6ea2)
         run: |
           git clone --quiet https://github.com/aien-dev/omega-mv.git ../omega-mv
           git -C ../omega-mv fetch --quiet origin universal/624-g1-integration
           git -C ../omega-mv checkout --quiet 2d4c640702c82b8deb8a296407aadf660dac7fc7
           git -C ../omega-mv cat-file -e 0b77e6ea2^{commit}
-          git -C ../omega-mv cat-file -e 4d41457466c42ccb52f405915fd95da469a439e3^{commit}
           git clone --quiet https://github.com/aien-dev/omega-bridge.git ../omega-bridge
       - name: Go 1.27.3 and Zig 0.17.0 (sha256 checked against the official release indexes)
         run: |
