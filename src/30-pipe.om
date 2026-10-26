@@ -1,0 +1,613 @@
+note babel 30-pipe: configuration, paths, adapter runs per unit (import, lower, Omega check, export).
+global Rt0 ulong 1
+global Rtn ulong 1
+global Isf ulong 1
+global Ot0 ulong 1
+global Otn ulong 1
+global Ad0 ulong 1
+global Adn ulong 1
+global Lg ulong 1
+global Tl0 ulong 8
+global Tln ulong 8
+global Tv0 ulong 8
+global Tvn ulong 8
+global Pg0 ulong 1
+global Pgn ulong 1
+global Nid ulong 1
+global Jsn ulong 1
+global Col ulong 1
+text AdDir "/tools/adapters/"
+text OmcRel "/build/T624/seed/seed/out/omc"
+text OmcPin "734f0a39319fbfa930bcc62cb30dbf06d47d78e126372b74f5baf478e6126b61"
+text Slash "/"
+text NL "\n"
+text Wk ".work/"
+text WkIn "unit.c"
+text WkUp "up.omsa"
+text WkC "c.omsa"
+text WkT "t.omsa"
+text WkErr "err.txt"
+text WkOut "out.txt"
+text WkBin "check.bin"
+text DOmega "omega/"
+text ExOm ".om"
+text ExOmsa ".omsa"
+text AdCi "c-import"
+text AdRt "retarget"
+text AdLo "lower"
+text ArgC "c"
+text ArgRs "rust"
+text ArgPy "python"
+text ArgCpp "cpp"
+text ArgZig "zig"
+text ArgGo "go"
+text AdRsE "rust-export"
+text AdPyE "python-export"
+text AdCE "c-export"
+text AdCpE "cpp-export"
+text AdZgE "zig-export"
+text AdGoE "go-export"
+text RsDup "BABEL_DUPLICATE_NAME: a unit with this name was already translated in this run; babel packages one flat namespace per target"
+text RsExit "exit "
+text RsEmpty " with empty stderr"
+text RsOmc "omc (pinned 734f0a39) refused the lowered unit: "
+text RsLow "lower refused the imported unit: "
+text RsTool "adapter environment failure (not a profile refusal): "
+text RsNoTl "target toolchain not found; export written but never built or run: "
+text Ext_rs ".rs"
+text Ext_py ".py"
+text Ext_c ".c"
+text Ext_cp ".cpp"
+text Ext_zg ".zig"
+text Ext_go ".go"
+text URs "rust/src/units/"
+text UCc "c/units/"
+text UCp "cpp/units/"
+text UZg "zig/units/"
+text UGo "go/"
+text UGoF "/calc.go"
+text UPy "/units/"
+text DPy "python/"
+text HdStd "#include <stdint.h>\n"
+
+fn bout to void
+bpl get Ot0 0 get Otn 0
+end
+
+note <out>/<s>
+fn bouts s view uchar * to void
+bout
+bc 47
+bs s
+end
+
+note <out>/.work/<s>
+fn bwk s view uchar * to void
+bout
+bc 47
+bs Wk
+bs s
+end
+
+note <adapters>/tools/adapters/<s>
+fn bad s view uchar * to void
+bpl get Ad0 0 get Adn 0
+bs AdDir
+bs s
+end
+
+fn bname u ulong to void
+bpl get Un0 u get Unn u
+end
+
+fn rset i ulong a ulong b ulong to void
+put Rio i a
+put Rio add i 1 b
+end
+
+note stdin, stdout and stderr from three .work names; argv must already hold the program
+fn rwork si view uchar * so view uchar * to void
+a = mark
+bwk si
+b = mark
+bwk so
+c = mark
+bwk WkErr
+d = mark
+rset 0 a b
+rset 2 b c
+rset 4 c d
+end
+
+note first line of .work/err.txt as the unit reason, prefixed by s
+fn errwhy u ulong s view uchar * rc ulong to void
+m = mark
+bs s
+k = mark
+bwk WkErr
+e = mark
+r = rfile k e
+reset k
+n = ulong 0
+if gt r 0
+n = ulong r
+end
+j = ulong 0
+while lt j n bound 999999
+if eq get Fb j 10
+break
+end
+j = add j 1
+end
+if gt j 400
+j = 400
+end
+if eq j 0
+bs RsExit
+bu rc
+bs RsEmpty
+else
+bfb 0 j
+end
+ureasob u m
+end
+
+fn kad s view uchar * to void
+m = mark
+bad s
+e = mark
+kob m sub e m
+reset m
+end
+
+note c-import with stdin .work/unit.c and stdout .work/up.omsa
+fn adimport to ulong
+m = mark
+rclr
+kenv
+kad AdCi
+rwork WkIn WkUp
+r = spawn
+reset m
+ret r
+end
+
+note copy .work/up.omsa to <out>/omega/<name>.omsa
+fn wkomsa u ulong to long
+m = mark
+bwk WkUp
+a = mark
+bouts DOmega
+bname u
+bs ExOmsa
+b = mark
+r = cphash m a a b
+reset m
+ret r
+end
+
+fn isrefusal rc ulong to bool
+if ge rc 65
+ret le rc 72
+end
+ret false
+end
+
+fn setst u ulong st ulong sg ulong rc ulong to void
+put Ust u st
+put Usg u sg
+put Urc u rc
+end
+
+note unit text with the adapter rename, prefixed by the S1 header
+fn bunit u ulong to void
+bs HdStd
+o = get Ut0 u
+n = get Utn u
+k = get Uno u
+bpl o k
+if not renamed u
+bs NmPfx
+end
+bpl add o k sub n k
+bc 10
+end
+
+fn renamed u ulong to bool
+o = get Un0 u
+n = get Unn u
+if plteq o n NmCalc
+ret true
+end
+ret plpre o n NmPfx
+end
+
+fn setaname u ulong to void
+m = mark
+if not renamed u
+bs NmPfx
+end
+bname u
+put Ua0 u psave m sub mark m
+put Uan u sub mark m
+reset m
+end
+
+fn dupname u ulong to bool
+for i ulong u
+if ge get Ust i 7
+if pleq get Un0 i get Unn i get Un0 u get Unn u
+ret true
+end
+end
+end
+ret false
+end
+
+note import stage: write .work/unit.c and omega/<name>.c, run c-import
+fn stimport u ulong to bool
+setaname u
+m = mark
+bunit u
+c1 = mark
+bwk WkIn
+p1 = mark
+w = wfile m c1 c1 p1
+reset c1
+r = adimport
+if ne r 0
+if isrefusal r
+setst u 2 2 r
+else
+setst u 4 2 r
+end
+if isrefusal r
+errwhy u NL r
+else
+errwhy u RsTool r
+end
+trimnl u
+reset m
+ret false
+end
+if dupname u
+setst u 3 2 0
+ureason u RsDup
+reset m
+ret false
+end
+bouts DOmega
+bname u
+bs Ext_c
+p2 = mark
+w = wfile m c1 c1 p2
+reset m
+c = wkomsa u
+ret true
+end
+
+note drop the leading newline errwhy uses as an empty prefix
+fn trimnl u ulong to void
+if gt get Urn u 0
+if eq get Pl get Ur0 u 10
+put Ur0 u add get Ur0 u 1
+put Urn u sub get Urn u 1
+end
+end
+end
+
+note <out>/omega/<name>.omsa as stdin, a .work file as stdout
+fn romsa u ulong so view uchar * to void
+a = mark
+bouts DOmega
+bname u
+bs ExOmsa
+b = mark
+bwk so
+c = mark
+bwk WkErr
+d = mark
+rset 0 a b
+rset 2 b c
+rset 4 c d
+end
+
+note lower stage: retarget c then lower NAME into omega/<name>.om, then the function-mode Omega check
+fn stlower u ulong to bool
+m = mark
+rclr
+kenv
+kad AdRt
+ktx ArgC
+romsa u WkC
+r = spawn
+reset m
+if ne r 0
+setst u 4 3 r
+errwhy u RsLow r
+ret false
+end
+r = lowerto u get Un0 u get Unn u
+if eq r 64
+r = lowerto u get Ua0 u get Uan u
+put Uw0 u get Ua0 u
+put Uwn u get Uan u
+else
+put Uw0 u get Un0 u
+put Uwn u get Unn u
+end
+if ne r 0
+setst u 4 3 r
+errwhy u RsLow r
+ret false
+end
+r = omccheck u
+if ne r 0
+setst u 4 4 r
+errwhy u RsOmc r
+ret false
+end
+ret true
+end
+
+fn lowerto u ulong no ulong nn ulong to ulong
+m = mark
+rclr
+kenv
+kad AdLo
+kpl no nn
+a = mark
+bwk WkC
+b = mark
+bouts DOmega
+bname u
+bs ExOm
+c = mark
+bwk WkErr
+d = mark
+rset 0 a b
+rset 2 b c
+rset 4 c d
+r = spawn
+reset m
+ret r
+end
+
+fn bomc to void
+bpl get Ad0 0 get Adn 0
+bs OmcRel
+end
+
+fn omccheck u ulong to ulong
+m = mark
+rclr
+krst
+k = mark
+bomc
+e = mark
+kob k sub e k
+reset k
+a = mark
+bouts DOmega
+bname u
+bs ExOm
+b = mark
+bwk WkBin
+c = mark
+bwk WkErr
+d = mark
+rset 0 a b
+rset 2 b c
+rset 4 c d
+r = spawn
+reset m
+ret r
+end
+
+note export stage for the selected target
+fn stexport u ulong to bool
+g = get Lg 0
+r = ulong 0
+if eq g 2
+r = exp2 u AdRsE ArgRs
+end
+if eq g 3
+r = exp2 u AdPyE ArgPy
+end
+if eq g 1
+r = expc u
+end
+if eq g 6
+r = exp1 u AdCpE
+end
+if eq g 5
+r = exp1 u AdZgE
+end
+if eq g 4
+r = expgo u
+end
+if ne r 0
+if isrefusal r
+setst u 2 5 r
+errwhy u NL r
+trimnl u
+else
+setst u 4 5 r
+errwhy u RsTool r
+end
+ret false
+end
+put Uid u get Nid 0
+put Nid 0 add get Nid 0 1
+setst u 7 5 0
+ret true
+end
+
+note unit output path of the selected target: <out>/<lang dir><name><ext>
+fn bupath u ulong to void
+g = get Lg 0
+if eq g 2
+bouts URs
+end
+if eq g 3
+bouts DPy
+bpl get Pg0 0 get Pgn 0
+bs UPy
+end
+if eq g 1
+bouts UCc
+end
+if eq g 6
+bouts UCp
+end
+if eq g 5
+bouts UZg
+end
+bname u
+bext
+end
+
+fn bext to void
+g = get Lg 0
+if eq g 2
+bs Ext_rs
+end
+if eq g 3
+bs Ext_py
+end
+if eq g 1
+bs Ext_c
+end
+if eq g 6
+bs Ext_cp
+end
+if eq g 5
+bs Ext_zg
+end
+end
+
+note retarget to the target, then the target exporter without arguments
+fn exp2 u ulong ad view uchar * arg view uchar * to ulong
+m = mark
+rclr
+kenv
+kad AdRt
+ktx arg
+romsa u WkT
+r = spawn
+reset m
+if ne r 0
+ret r
+end
+rclr
+kenv
+kad ad
+a = mark
+bwk WkT
+b = mark
+bupath u
+c = mark
+bwk WkErr
+d = mark
+rset 0 a b
+rset 2 b c
+rset 4 c d
+r = spawn
+reset m
+ret r
+end
+
+note exporters that read the upper envelope directly (cpp, zig)
+fn exp1 u ulong ad view uchar * to ulong
+m = mark
+rclr
+kenv
+kad ad
+a = mark
+bouts DOmega
+bname u
+bs ExOmsa
+b = mark
+bupath u
+c = mark
+bwk WkErr
+d = mark
+rset 0 a b
+rset 2 b c
+rset 4 c d
+r = spawn
+reset m
+ret r
+end
+
+note C: .work/c.omsa (retarget c from the lower stage) into c-export with the adapter name
+fn expc u ulong to ulong
+m = mark
+rclr
+kenv
+kad AdCE
+kpl get Ua0 u get Uan u
+a = mark
+bwk WkC
+b = mark
+bupath u
+c = mark
+bwk WkErr
+d = mark
+rset 0 a b
+rset 2 b c
+rset 4 c d
+r = spawn
+reset m
+ret r
+end
+
+note Go: one package-main directory per unit, go/<name>/calc.go
+fn expgo u ulong to ulong
+m = mark
+bouts UGo
+bname u
+e = mark
+q = mkdirs m e
+reset m
+rclr
+kenv
+kad AdGoE
+a = mark
+bouts DOmega
+bname u
+bs ExOmsa
+b = mark
+bouts UGo
+bname u
+bs UGoF
+c = mark
+bwk WkErr
+d = mark
+rset 0 a b
+rset 2 b c
+rset 4 c d
+r = spawn
+reset m
+ret r
+end
+
+note run every function unit through import, lower, Omega check and export
+fn pipeline to void
+for u ulong get Nu 0
+if ne get Ukd u 1
+continue
+end
+if ne get Ust u 0
+continue
+end
+progress u
+if not stimport u
+continue
+end
+if not stlower u
+continue
+end
+ok = stexport u
+end
+end

@@ -1,0 +1,514 @@
+note babel 10-io: files, directories, environment, tool lookup, child processes.
+global Ev0 ulong 512
+global Evn ulong 512
+global Evc ulong 1
+global Gv0 ulong 1
+global Gvn ulong 1
+global Pk uchar 4096
+global Kn ulong 1
+global Kc ulong 1
+global Rio ulong 8
+global Rmg ulong 1
+global St uchar 8
+text DevNull "/dev/null"
+text EnvBin "/usr/bin/env"
+text EvPath "PATH="
+text EvHome "HOME="
+text EvUser "USER="
+text EvTmp "TMPDIR="
+text EvLang "LANG="
+text EvCh "CARGO_HOME="
+text EvRh "RUSTUP_HOME="
+text EvRt "RUSTUP_TOOLCHAIN="
+text EvGp "GOPATH="
+text EvGm "GOMODCACHE="
+text EvGtl "GOTOOLCHAIN=local"
+text EvCgo "CGO_ENABLED=0"
+text EvGpx "GOPROXY=off"
+text EvGfl "GOFLAGS=-mod=mod"
+text EvCtc "CARGO_TERM_COLOR=never"
+text EvNet "CARGO_NET_OFFLINE=true"
+
+note write Ob[c0, c1) to the file named Ob[p0, p1); 0 or -errno
+fn wfile c0 ulong c1 ulong p0 ulong p1 ulong to long
+fd = fopen Ob p0 sub p1 p0 577 420
+if lt fd 0
+ret fd
+end
+o = c0
+while lt o c1 bound 999999
+w = write int fd Ob o sub c1 o
+if le w 0
+r = fclose int fd
+ret -5
+end
+o = add o ulong w
+end
+r = fclose int fd
+ret 0
+end
+
+note read the file named Ob[p0, p1) into Fb; size or -errno (-27 when larger than Fb)
+fn rfile p0 ulong p1 ulong to long
+fd = fopen Ob p0 sub p1 p0 0 0
+if lt fd 0
+ret fd
+end
+n = ulong 0
+while true bound 999999
+if ge n len Fb
+r = fclose int fd
+ret -27
+end
+r = read int fd Fb n sub len Fb n
+if lt r 0
+c = fclose int fd
+ret r
+end
+if eq r 0
+break
+end
+n = add n ulong r
+end
+c = fclose int fd
+put Fn 0 n
+ret long n
+end
+
+note copy file Ob[s0, s1) to Ob[d0, d1), hashing the bytes into Hash; size or -errno
+fn cphash s0 ulong s1 ulong d0 ulong d1 ulong to long
+fi = fopen Ob s0 sub s1 s0 0 0
+if lt fi 0
+ret fi
+end
+fo = fopen Ob d0 sub d1 d0 577 420
+if lt fo 0
+c = fclose int fi
+ret fo
+end
+hinit
+t = ulong 0
+while true bound 999999
+r = read int fi Fb 0 262144
+if le r 0
+break
+end
+n = ulong r
+for i ulong n
+hbyte get Fb i
+end
+w = write int fo Fb 0 n
+if ne w r
+c = fclose int fi
+c = fclose int fo
+ret -5
+end
+t = add t n
+end
+finish
+c = fclose int fi
+c = fclose int fo
+ret long t
+end
+
+note SHA-256 of the file Ob[p0, p1) into Hash; size or -errno
+fn hfile p0 ulong p1 ulong to long
+fi = fopen Ob p0 sub p1 p0 0 0
+if lt fi 0
+ret fi
+end
+hinit
+t = ulong 0
+while true bound 999999
+r = read int fi Fb 0 262144
+if le r 0
+break
+end
+n = ulong r
+for i ulong n
+hbyte get Fb i
+end
+t = add t n
+end
+finish
+c = fclose int fi
+ret long t
+end
+
+note lstat Ob[p0, p1) into Sb: 0 absent, 1 file, 2 directory, 3 other
+fn ftype p0 ulong p1 ulong to ulong
+r = lstat Ob p0 sub p1 p0 Sb 0 128
+if lt r 0
+ret 0
+end
+m = and get Sb 17 240
+if eq m 128
+ret 1
+end
+if eq m 64
+ret 2
+end
+ret 3
+end
+
+fn fsize to ulong
+s = ulong 0
+for i ulong 8
+s = or shl s 8 ulong get Sb sub 55 i
+end
+ret s
+end
+
+note mkdir -p of Ob[p0, p1) (absolute path); 0 or -errno
+fn mkdirs p0 ulong p1 ulong to long
+i = add p0 1
+while le i p1 bound 999999
+e = eq i p1
+if not e
+e = eq get Ob i 47
+end
+if e
+r = makedir Ob p0 sub i p0 493
+if lt r 0
+if ne r -17
+ret r
+end
+end
+end
+i = add i 1
+end
+ret 0
+end
+
+note read the entries of directory Ob[p0, p1) onto the arena as records
+note (type uchar, name bytes, 0); "." and ".." skipped; returns the record end or 0 on error
+fn dirrecs p0 ulong p1 ulong to ulong
+fd = fopen Ob p0 sub p1 p0 16384 0
+if lt fd 0
+ret 0
+end
+while true bound 999999
+r = getdnts int fd Dn 0 len Dn
+if le r 0
+break
+end
+o = ulong 0
+while lt o ulong r bound 999999
+o = drec o
+end
+end
+c = fclose int fd
+ret mark
+end
+
+note copy one getdents64 record at Dn[o] to the arena; returns the next record offset
+fn drec o ulong to ulong
+n = add o 19
+k = n
+while ne get Dn k 0 bound 4096
+k = add k 1
+end
+sk = false
+if eq get Dn n 46
+if eq k add n 1
+sk = true
+end
+if eq k add n 2
+if eq get Dn add n 1 46
+sk = true
+end
+end
+end
+if not sk
+bc get Dn add o 18
+for i ulong sub k n
+bc get Dn add n i
+end
+bc 0
+end
+ret add o or ulong get Dn add o 16 shl ulong get Dn add o 17 8
+end
+
+note rm -rf of Ob[p0, p1); 0 or -errno
+fn rmtree p0 ulong p1 ulong to long
+t = ftype p0 p1
+if eq t 0
+ret 0
+end
+if ne t 2
+ret unlink Ob p0 sub p1 p0
+end
+m = mark
+e = dirrecs p0 p1
+if eq e 0
+reset m
+ret -13
+end
+o = m
+while lt o e bound 999999
+ty = get Ob o
+n = add o 1
+k = n
+while ne get Ob k 0 bound 4096
+k = add k 1
+end
+c0 = mark
+bob p0 sub p1 p0
+bc 47
+bob n sub k n
+c1 = mark
+if eq ty 4
+r = rmtree c0 c1
+else
+r = unlink Ob c0 sub c1 c0
+end
+reset c0
+o = add k 1
+end
+reset m
+ret rmdir Ob p0 sub p1 p0
+end
+
+note environment snapshot: every NAME=VALUE goes to the pool
+fn envinit to void
+n = envcnt
+if lt n 0
+ret
+end
+c = ulong 0
+for i ulong ulong n
+if ge c 512
+break
+end
+r = envread i Ag 0 len Ag
+if le r 0
+continue
+end
+m = mark
+for j ulong ulong r
+bc get Ag j
+end
+put Ev0 c psave m ulong r
+put Evn c ulong r
+reset m
+c = add c 1
+end
+put Evc 0 c
+end
+
+note look NAME= up; sets Gv0/Gvn to the value in the pool
+fn getenv s view uchar * to bool
+for i ulong get Evc 0
+o = get Ev0 i
+n = get Evn i
+if plpre o n s
+put Gv0 0 add o len s
+put Gvn 0 sub n len s
+ret true
+end
+end
+ret false
+end
+
+fn envfwd o ulong n ulong to bool
+if plpre o n EvPath
+ret true
+end
+if plpre o n EvHome
+ret true
+end
+if plpre o n EvUser
+ret true
+end
+if plpre o n EvTmp
+ret true
+end
+if plpre o n EvLang
+ret true
+end
+if plpre o n EvCh
+ret true
+end
+if plpre o n EvRh
+ret true
+end
+if plpre o n EvRt
+ret true
+end
+if plpre o n EvGp
+ret true
+end
+ret plpre o n EvGm
+end
+
+note search PATH for an executable named s; sets Gv0/Gvn to its absolute path in the pool
+fn which s view uchar * to bool
+if not getenv EvPath
+ret false
+end
+o = get Gv0 0
+e = add o get Gvn 0
+i = o
+while le i e bound 999999
+d = eq i e
+if not d
+d = eq get Pl i 58
+end
+if d
+if gt i o
+m = mark
+bpl o sub i o
+bc 47
+bs s
+x = mark
+r = faccess Ob m sub x m 1
+if eq r 0
+put Gv0 0 psave m sub x m
+put Gvn 0 sub x m
+reset m
+ret true
+end
+reset m
+end
+o = add i 1
+end
+i = add i 1
+end
+ret false
+end
+
+note packed argv in Pk: u16 count, then u16 length + bytes per record
+fn krst to void
+put Kn 0 2
+put Kc 0 0
+end
+
+fn kbyte c uchar to void
+o = get Kn 0
+if lt o 4096
+put Pk o c
+put Kn 0 add o 1
+else
+put Cap 0 1
+end
+end
+
+fn khead n ulong to void
+kbyte uchar and n 255
+kbyte uchar shr n 8
+put Kc 0 add get Kc 0 1
+end
+
+fn kob o ulong n ulong to void
+khead n
+for i ulong n
+kbyte get Ob add o i
+end
+end
+
+fn kpl o ulong n ulong to void
+khead n
+for i ulong n
+kbyte get Pl add o i
+end
+end
+
+fn ktx s view uchar * to void
+khead len s
+for i ulong len s
+kbyte get s i
+end
+end
+
+note argv prefix: /usr/bin/env with the forwarded variables and fixed offline/toolchain pins
+fn kenv to void
+krst
+ktx EnvBin
+for i ulong get Evc 0
+o = get Ev0 i
+n = get Evn i
+if envfwd o n
+kpl o n
+end
+end
+ktx EvGtl
+ktx EvCgo
+ktx EvGpx
+ktx EvGfl
+ktx EvCtc
+ktx EvNet
+end
+
+fn kfin to void
+c = get Kc 0
+put Pk 0 uchar and c 255
+put Pk 1 uchar shr c 8
+end
+
+note redirections: Rio 0/1 stdin, 2/3 stdout, 4/5 stderr, 6/7 cwd (Ob ranges; empty = /dev/null or none)
+fn rclr to void
+for i ulong 8
+put Rio i 0
+end
+put Rmg 0 0
+end
+
+fn ropen i ulong flags int fd int to void
+a = get Rio i
+b = get Rio add i 1
+f = long -1
+if gt b a
+f = fopen Ob a sub b a flags 420
+else
+f = fopen DevNull 0 len DevNull flags 0
+end
+if lt f 0
+exit int 126
+end
+r = dupfd int f fd 0
+if lt r 0
+exit int 126
+end
+c = fclose int f
+end
+
+fn childio to void
+ropen 0 0 0
+ropen 2 577 1
+if eq get Rmg 0 1
+r = dupfd 1 2 0
+else
+ropen 4 577 2
+end
+a = get Rio 6
+b = get Rio 7
+if gt b a
+c = chdir Ob a sub b a
+if lt c 0
+exit int 126
+end
+end
+end
+
+note run Pk; exit status, 128 + signal, or 255 when the process could not be started
+fn spawn to ulong
+kfin
+pid = fork
+if lt pid 0
+ret 255
+end
+if eq pid 0
+childio
+r = execprog Pk 0 get Kn 0
+exit int 127
+end
+w = waitpid int pid St 0 4 0
+if ne w pid
+ret 255
+end
+s = ulong and get St 0 127
+if ne s 0
+ret add 128 s
+end
+ret ulong get St 1
+end

@@ -1,0 +1,816 @@
+note babel 90-main: arguments, the target picker, input copy and the run order.
+global Nocol ulong 1
+global Ps0 ulong 1
+global Psn ulong 1
+global Rd0 ulong 1
+global Rdn ulong 1
+global Ln uchar 64
+text Usage "usage: babel <path> [--to rust|c|python|cpp|zig|go] [--json] [--no-color] [--adapters DIR]\n\nTranslate the C functions under <path> through Omega into the target language. The result goes\nnext to <path>, in <path>.babel/: input/ (a hashed copy), omega/ (the Omega units), <target>/\n(the generated project), diff/ (the differential test) and REPORT.md + report.json.\n\nOnly profile S1 is implemented (pure functions of 0-6 uint64_t inputs using + - * modulo 2^64).\nEverything else is reported, with the reason and location, and is never approximated.\n\n  --to LANG        target: rust, c, python, cpp, zig or go (asked interactively when omitted on a terminal)\n  --json           print report.json on stdout instead of the summary table\n  --no-color       no ANSI colour (also when NO_COLOR is set or stdout is not a terminal)\n  --adapters DIR   omega-mv checkout with built adapters (default: $BABEL_ADAPTERS)\n  --version        print the version and pins\n\nexit status: 0 no FAIL, 1 at least one FAIL, 2 usage or environment error, 64 no target and no terminal\n"
+text VerL "babel 0.1.0\nbuilt with omega-mv seed/out/omc OM-2 (main 0b77e6ea2, sha256 2c82480596bbdc50cda9626866209ef662d5834f278f839ff4ce0250c495029f)\nadapters: aien-dev/omega-mv universal/624-g1-integration 2d4c6407, profile S1 c17-uint64-pure-v1\nadapter omc sha256 734f0a39319fbfa930bcc62cb30dbf06d47d78e126372b74f5baf478e6126b61\n"
+text OTo "--to"
+text OToE "--to="
+text OJson "--json"
+text ONoc "--no-color"
+text OAd "--adapters"
+text OAdE "--adapters="
+text OHelp "--help"
+text OShort "-h"
+text OVer "--version"
+text EvAd "BABEL_ADAPTERS="
+text EvNoc "NO_COLOR="
+text LcPlus "c++"
+text LcRs "rs"
+text LcPy "py"
+text EUnk "babel: unknown option: "
+text EBadL "babel: unknown target language: "
+text ETwo "babel: more than one <path> given\n"
+text ENoP "babel: no <path> given (see babel --help)\n"
+text ENoA "babel: no adapters: pass --adapters DIR or set BABEL_ADAPTERS to an omega-mv checkout whose adapters were built (tools/adapters/build-g3.py, see README)\n"
+text ENoIn "babel: input not found or not a regular file or directory: "
+text EPin1 "babel: the adapters' native omc at "
+text EPin2 " does not have the pinned sha256 734f0a39...6b61 (rebuild the adapters at the pinned revision; see README)\n"
+text ENoTty "babel: no --to given and stdin is not a terminal; pass --to rust|c|python|cpp|zig|go\n"
+text EOut "babel: cannot create the output folder: "
+text ECap "babel: an internal capacity was exceeded (2048 files, 1024 units, 8 MiB pool); the report is incomplete\n"
+text PkPick1 "babel: choose a target language for "
+text PkPick2 "\n  1) rust   2) c   3) python   4) cpp   5) zig   6) go\n> "
+text BabExt ".babel"
+text DInput "input"
+text DOm "omega"
+text DDiff "diff"
+text DWk ".work"
+text DRsU "rust/src/units"
+text DRsB "rust/src/bin"
+text DRsT "rust/tests"
+text DCU "c/units"
+text DCpU "cpp/units"
+text DCpD "cpp/diff"
+text DZU "zig/units"
+text DGo "go"
+text DPyR "python"
+text DUnits "/units"
+text GitHead "/.git/HEAD"
+text GitDir "/.git/"
+text RefPfx "ref: "
+text PkgDef "babel_out"
+text PkgP "p_"
+text RsBig "file larger than babel's 512 KiB splitter buffer: not split, nothing translated"
+text RsLang1 "no babel splitter for "
+text RsLang2 " sources yet: the omega-mv "
+text RsLang3 "-import adapter takes one function per unit, and babel cannot cut "
+text RsLang4 " files into units (C is the only input language in this release)"
+text RsRead "file could not be read: "
+text Zero64 "0000000000000000000000000000000000000000000000000000000000000000"
+
+fn argeq i ulong s view uchar * to bool
+n = argread i Ag 0 len Ag
+if ne n long len s
+ret false
+end
+for j ulong len s
+if ne get Ag j get s j
+ret false
+end
+end
+ret true
+end
+
+note argument i into the pool (Ps0/Psn); false when it does not fit
+fn argpl i ulong to bool
+n = argread i Ag 0 len Ag
+if lt n 0
+ret false
+end
+m = mark
+for j ulong ulong n
+bc get Ag j
+end
+put Ps0 0 psave m ulong n
+put Psn 0 ulong n
+reset m
+ret true
+end
+
+fn eputs s view uchar * to void
+w = write 2 s 0 len s
+end
+
+fn eputpl o ulong n ulong to void
+m = mark
+bpl o n
+bc 10
+flush 2 m
+end
+
+note language code of the pool text Ps0/Psn: 1 c, 2 rust, 3 python, 4 go, 5 zig, 6 cpp, 0 unknown
+fn langname o ulong n ulong to ulong
+if plteq o n LnC
+ret 1
+end
+if plteq o n LnRs
+ret 2
+end
+if plteq o n LcRs
+ret 2
+end
+if plteq o n LnPy
+ret 3
+end
+if plteq o n LcPy
+ret 3
+end
+if plteq o n LnGo
+ret 4
+end
+if plteq o n LnZig
+ret 5
+end
+if plteq o n LnCpp
+ret 6
+end
+if plteq o n LcPlus
+ret 6
+end
+ret 0
+end
+
+note parse argv; returns 0 to continue, else an exit status + 1
+fn args to ulong
+c = argcnt
+i = ulong 1
+put Rtn 0 0
+while lt i ulong c bound 4096
+r = arg1 i
+if ge r 1000
+i = add i 1
+r = sub r 1000
+end
+if ne r 0
+ret r
+end
+i = add i 1
+end
+ret 0
+end
+
+note one argument at i: 0 consumed, 1000 + 0 consumed with its value, else exit status + 1
+fn arg1 i ulong to ulong
+if argeq i OHelp
+eputs Usage
+ret 1
+end
+if argeq i OShort
+eputs Usage
+ret 1
+end
+if argeq i OVer
+w = write 1 VerL 0 len VerL
+ret 1
+end
+if argeq i OJson
+put Jsn 0 1
+ret 0
+end
+if argeq i ONoc
+put Nocol 0 1
+ret 0
+end
+if argeq i OTo
+ret argto add i 1
+end
+if argeq i OAd
+ret argad add i 1
+end
+ok = argpl i
+if not ok
+eputs EUnk
+ret 3
+end
+o = get Ps0 0
+n = get Psn 0
+if plpre o n OToE
+put Lg 0 langname add o len OToE sub n len OToE
+if eq get Lg 0 0
+eputs EBadL
+eputpl o n
+ret 3
+end
+ret 0
+end
+if plpre o n OAdE
+put Ad0 0 add o len OAdE
+put Adn 0 sub n len OAdE
+ret 0
+end
+if gt n 0
+if eq get Pl o 45
+eputs EUnk
+eputpl o n
+ret 3
+end
+end
+if gt get Rtn 0 0
+eputs ETwo
+ret 3
+end
+put Rt0 0 o
+put Rtn 0 n
+ret 0
+end
+
+fn argto i ulong to ulong
+if ge i ulong argcnt
+eputs EBadL
+ret 3
+end
+ok = argpl i
+o = get Ps0 0
+n = get Psn 0
+put Lg 0 langname o n
+if eq get Lg 0 0
+eputs EBadL
+eputpl o n
+ret 3
+end
+ret 1000
+end
+
+fn argad i ulong to ulong
+if ge i ulong argcnt
+eputs ENoA
+ret 3
+end
+ok = argpl i
+put Ad0 0 get Ps0 0
+put Adn 0 get Psn 0
+ret 1000
+end
+
+fn istty fd int to bool
+r = fstat fd Sb 0 128
+if lt r 0
+ret false
+end
+ret eq and get Sb 17 240 32
+end
+
+note interactive target picker on stdin/stderr
+fn picker to ulong
+m = mark
+bs PkPick1
+bpl get Rt0 0 get Rtn 0
+bs PkPick2
+flush 2 m
+r = read 0 Ln 0 len Ln
+if le r 0
+ret 0
+end
+n = ulong r
+while gt n 0 bound 64
+c = get Ln sub n 1
+if gt c 32
+break
+end
+n = sub n 1
+end
+if eq n 1
+d = get Ln 0
+if ge d 49
+if le d 54
+ret pickn sub d 48
+end
+end
+end
+m = mark
+for j ulong n
+bc get Ln j
+end
+p = psave m n
+reset m
+ret langname p n
+end
+
+fn pickn d uchar to ulong
+if eq d 1
+ret 2
+end
+if eq d 2
+ret 1
+end
+if eq d 3
+ret 3
+end
+if eq d 4
+ret 6
+end
+if eq d 5
+ret 5
+end
+ret 4
+end
+
+note absolute input path (cwd joined, "./" and trailing "/" removed) back into Rt0/Rtn
+fn absin to void
+o = get Rt0 0
+n = get Rtn 0
+m = mark
+if eq get Pl o 47
+bpl o n
+else
+r = cwd Ag 0 len Ag
+if gt r 1
+for j ulong sub ulong r 1
+bc get Ag j
+end
+end
+k = ulong 0
+while lt add k 1 n bound 4096
+if ne get Pl add o k 46
+break
+end
+if ne get Pl add o add k 1 47
+break
+end
+k = add k 2
+end
+if lt k n
+bc 47
+bpl add o k sub n k
+end
+end
+while gt sub mark m 1 bound 4096
+if ne get Ob sub mark 1 47
+break
+end
+put Ol 0 sub mark 1
+end
+put Rt0 0 psave m sub mark m
+put Rtn 0 sub mark m
+reset m
+end
+
+note package name from the input's last path component: [a-z0-9_], not starting with a digit
+fn pkgname to void
+o = get Rt0 0
+n = get Rtn 0
+s = o
+for i ulong n
+if eq get Pl add o i 47
+s = add add o i 1
+end
+end
+k = sub add o n s
+m = mark
+for i ulong k
+c = get Pl add s i
+if ge c 65
+if le c 90
+c = add c 32
+end
+end
+bc pkc c
+end
+if gt sub mark m 0
+if lt get Ob m 58
+put Ol 0 m
+bs PkgP
+bpkc s k
+end
+end
+if eq sub mark m 0
+bs PkgDef
+end
+put Pg0 0 psave m sub mark m
+put Pgn 0 sub mark m
+reset m
+end
+
+fn bpkc s ulong k ulong to void
+for i ulong k
+c = get Pl add s i
+if ge c 65
+if le c 90
+c = add c 32
+end
+end
+bc pkc c
+end
+end
+
+fn pkc c uchar to uchar
+if ge c 97
+if le c 122
+ret c
+end
+end
+if ge c 48
+if le c 57
+ret c
+end
+end
+ret 95
+end
+
+note the output folder <input>.babel and its fixed subfolders
+fn outdirs to bool
+m = mark
+bpl get Rt0 0 get Rtn 0
+bs BabExt
+put Ot0 0 psave m sub mark m
+put Otn 0 sub mark m
+e = mark
+r = mkdirs m e
+reset m
+if lt r 0
+m = mark
+bs EOut
+bout
+bc 10
+flush 2 m
+ret false
+end
+clean DInput
+clean DOm
+clean DDiff
+clean DWk
+m = mark
+bout
+bc 47
+blang get Lg 0
+e = mark
+r = rmtree m e
+reset m
+mkout DOm
+mkout DDiff
+mkout DWk
+g = get Lg 0
+if eq g 2
+mkout DRsU
+mkout DRsB
+mkout DRsT
+end
+if eq g 3
+m = mark
+bouts DPyR
+bc 47
+bpl get Pg0 0 get Pgn 0
+bs DUnits
+e = mark
+q = mkdirs m e
+reset m
+end
+if eq g 1
+mkout DCU
+end
+if eq g 6
+mkout DCpU
+mkout DCpD
+end
+if eq g 5
+mkout DZU
+end
+if eq g 4
+mkout DGo
+end
+ret true
+end
+
+fn clean s view uchar * to void
+m = mark
+bouts s
+e = mark
+r = rmtree m e
+reset m
+end
+
+note absolute adapters path; HEAD sha and ref of the adapters checkout
+fn adhead to void
+m = mark
+bpl get Ad0 0 get Adn 0
+bs GitHead
+e = mark
+r = rfile m e
+reset m
+if le r 0
+ret
+end
+n = ulong r
+while gt n 0 bound 4096
+if gt get Fb sub n 1 32
+break
+end
+n = sub n 1
+end
+if lt n len RefPfx
+ret
+end
+if fbteq 0 len RefPfx RefPfx
+k = len RefPfx
+bfb k sub n k
+put Ar0 0 psave m sub n k
+put Arn 0 sub n k
+reset m
+bpl get Ad0 0 get Adn 0
+bs GitDir
+bpl get Ar0 0 get Arn 0
+e = mark
+r = rfile m e
+reset m
+if le r 0
+ret
+end
+n = ulong r
+while gt n 0 bound 4096
+if gt get Fb sub n 1 32
+break
+end
+n = sub n 1
+end
+end
+bfb 0 n
+put Ah0 0 psave m n
+put Ahn 0 n
+reset m
+end
+
+note the adapters' native omc must hash to OmcPin
+fn pincheck to bool
+m = mark
+bomc
+e = mark
+r = hfile m e
+if lt r 0
+reset m
+ret false
+end
+h = mark
+bhash
+ok = obteq h sub mark h OmcPin
+reset m
+ret ok
+end
+
+note copy every walked file into input/, hashing it; split C files into units
+fn ingest to void
+for f ulong get Nf 0
+ingest1 f
+end
+end
+
+fn ingest1 f ulong to void
+m = mark
+bpl get Rd0 0 get Rdn 0
+if gt get Rdn 0 0
+bc 47
+end
+bpl get F0 f get Fl f
+a = mark
+bouts DInput
+bc 47
+bpl get F0 f get Fl f
+b = mark
+k = b
+while gt k a bound 4096
+k = sub k 1
+if eq get Ob k 47
+break
+end
+end
+q = mkdirs a k
+r = cphash m a a b
+reset m
+if lt r 0
+put Fsz f 0
+put Fh0 f ptext Zero64
+u = newunit f 5 1 1
+put Ust u 4
+ureason u RsRead
+ret
+end
+put Fsz f ulong r
+h = mark
+bhash
+put Fh0 f psave h 64
+reset h
+split1 f
+end
+
+
+fn split1 f ulong to void
+g = get Flg f
+if eq g 0
+ret
+end
+if ne g 1
+langunit f g
+ret
+end
+if gt get Fsz f len Fb
+u = newunit f 5 1 1
+put Ust u 3
+ureason u RsBig
+ret
+end
+m = mark
+bpl get Rd0 0 get Rdn 0
+if gt get Rdn 0 0
+bc 47
+end
+bpl get F0 f get Fl f
+e = mark
+r = rfile m e
+reset m
+if lt r 0
+u = newunit f 5 1 1
+put Ust u 4
+ureason u RsRead
+ret
+end
+csplit f
+end
+
+fn langunit f ulong g ulong to void
+u = newunit f 5 1 1
+put Ust u 3
+m = mark
+bs RsLang1
+blang g
+bs RsLang2
+blang g
+bs RsLang3
+blang g
+bs RsLang4
+ureasob u m
+end
+
+note generate the target project around the exported units
+fn gentarget to void
+if eq get Nid 0 0
+ret
+end
+g = get Lg 0
+if eq g 2
+genrust
+end
+if eq g 3
+genpy
+end
+if eq g 1
+genc
+end
+if eq g 6
+gencpp
+end
+if eq g 5
+genzig
+end
+if eq g 4
+gengo
+end
+end
+
+fn anyfail to bool
+for u ulong get Nu 0
+if eq get Ust u 4
+ret true
+end
+end
+t = get Tsr 0
+if eq t 0
+ret false
+end
+ret ne t 999
+end
+
+note the walked root: the input folder, or the parent of a single input file
+fn roots to bool
+m = mark
+bpl get Rt0 0 get Rtn 0
+e = mark
+t = ftype m e
+if eq t 2
+put Rd0 0 get Rt0 0
+put Rdn 0 get Rtn 0
+c = mark
+walk m e c c 0
+reset m
+ret true
+end
+reset m
+if ne t 1
+ret false
+end
+o = get Rt0 0
+n = get Rtn 0
+k = n
+while gt k 0 bound 4096
+k = sub k 1
+if eq get Pl add o k 47
+break
+end
+end
+put Rd0 0 o
+put Rdn 0 k
+m = mark
+bpl add o add k 1 sub sub n k 1
+e = mark
+addfile m e
+reset m
+ret true
+end
+
+fn main to int
+constants
+envinit
+put Rtn 0 0
+r = args
+if ne r 0
+ret int sub r 1
+end
+if eq get Rtn 0 0
+eputs ENoP
+ret 2
+end
+if eq get Adn 0 0
+if getenv EvAd
+put Ad0 0 get Gv0 0
+put Adn 0 get Gvn 0
+end
+end
+if eq get Adn 0 0
+eputs ENoA
+ret 2
+end
+absin
+if eq get Lg 0 0
+if not istty 0
+eputs ENoTty
+ret 64
+end
+put Lg 0 picker
+if eq get Lg 0 0
+eputs EBadL
+ret 2
+end
+end
+ret int run
+end
+
+fn run to ulong
+put Col 0 0
+if eq get Jsn 0 0
+if istty 1
+put Col 0 1
+end
+if istty 2
+put Tty 0 1
+end
+end
+if eq get Nocol 0 1
+put Col 0 0
+end
+if getenv EvNoc
+put Col 0 0
+end
+if not pincheck
+m = mark
+bs EPin1
+bomc
+flush 2 m
+eputs EPin2
+ret 2
+end
+pkgname
+if not roots
+m = mark
+bs ENoIn
+bpl get Rt0 0 get Rtn 0
+bc 10
+flush 2 m
+ret 2
+end
+if not outdirs
+ret 2
+end
+fsort
+adhead
+tools
+ingest
+pipeline
+gentarget
+difftest
+progend
+reports
+if eq get Cap 0 1
+eputs ECap
+end
+if eq get Jsn 0 1
+jsonout
+else
+summary
+end
+if anyfail
+ret 1
+end
+ret 0
+end

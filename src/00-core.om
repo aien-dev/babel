@@ -1,0 +1,249 @@
+note babel 00-core: arena builder, persistent pool, decimal and escaping. Program mode, OM-2.
+note Ob is a scratch arena used as a stack (mark/reset); Pl is an append-only pool for strings that
+note outlive one step (paths, names, reasons, vectors, oracle outputs).
+global Ob uchar 8388608
+global Ol ulong 1
+global Pl uchar 8388608
+global Pn ulong 1
+global Fb uchar 524288
+global Fn ulong 1
+global Dn uchar 65536
+global Sb uchar 256
+global Ag uchar 8192
+global Cap ulong 1
+
+fn mark to ulong
+ret get Ol 0
+end
+
+fn reset m ulong to void
+put Ol 0 m
+end
+
+fn bc c uchar to void
+o = get Ol 0
+if ge o 8388000
+put Cap 0 1
+ret
+end
+put Ob o c
+put Ol 0 add o 1
+end
+
+fn bs s view uchar * to void
+for i ulong len s
+bc get s i
+end
+end
+
+fn bob o ulong n ulong to void
+for i ulong n
+bc get Ob add o i
+end
+end
+
+fn bpl o ulong n ulong to void
+for i ulong n
+bc get Pl add o i
+end
+end
+
+fn bfb o ulong n ulong to void
+for i ulong n
+bc get Fb add o i
+end
+end
+
+fn bu v ulong to void
+d = new uchar 24 0
+n = ulong 0
+x = v
+while true bound 30
+put d n uchar add 48 rem x 10
+n = add n 1
+x = div x 10
+if eq x 0
+break
+end
+end
+while gt n 0 bound 30
+n = sub n 1
+bc get d n
+end
+end
+
+fn bl v long to void
+if lt v 0
+bc 45
+bu ulong neg v
+ret
+end
+bu ulong v
+end
+
+fn bsp n ulong to void
+for i ulong n
+bc 32
+end
+end
+
+fn bhex v ulong to void
+if lt v 10
+bc uchar add v 48
+ret
+end
+bc uchar add v 87
+end
+
+note copy Ob[o, o+n) into the pool; returns the pool offset
+fn psave o ulong n ulong to ulong
+p = get Pn 0
+if gt add p n 8388000
+put Cap 0 1
+ret p
+end
+for i ulong n
+put Pl add p i get Ob add o i
+end
+put Pn 0 add p n
+ret p
+end
+
+fn ptext s view uchar * to ulong
+p = get Pn 0
+for i ulong len s
+put Pl add p i get s i
+end
+put Pn 0 add p len s
+ret p
+end
+
+fn pleq a ulong an ulong b ulong bn ulong to bool
+if ne an bn
+ret false
+end
+for i ulong an
+if ne get Pl add a i get Pl add b i
+ret false
+end
+end
+ret true
+end
+
+fn plteq o ulong n ulong s view uchar * to bool
+if ne n len s
+ret false
+end
+for i ulong n
+if ne get Pl add o i get s i
+ret false
+end
+end
+ret true
+end
+
+note does Pl[o, o+n) start with text s
+fn plpre o ulong n ulong s view uchar * to bool
+if lt n len s
+ret false
+end
+for i ulong len s
+if ne get Pl add o i get s i
+ret false
+end
+end
+ret true
+end
+
+fn obteq o ulong n ulong s view uchar * to bool
+if ne n len s
+ret false
+end
+for i ulong n
+if ne get Ob add o i get s i
+ret false
+end
+end
+ret true
+end
+
+note does Pl[o, o+n) end with text s
+fn plsuf o ulong n ulong s view uchar * to bool
+if lt n len s
+ret false
+end
+b = add o sub n len s
+for i ulong len s
+if ne get Pl add b i get s i
+ret false
+end
+end
+ret true
+end
+
+note JSON string body of Pl[o, o+n) (no quotes)
+fn bjs o ulong n ulong to void
+for i ulong n
+c = get Pl add o i
+if eq c 34
+bc 92
+bc 34
+continue
+end
+if eq c 92
+bc 92
+bc 92
+continue
+end
+if eq c 10
+bc 92
+bc 110
+continue
+end
+if lt c 32
+bc 92
+bc 117
+bc 48
+bc 48
+bhex ulong shr c 4
+bhex ulong and c 15
+continue
+end
+bc c
+end
+end
+
+fn bjq o ulong n ulong to void
+bc 34
+bjs o n
+bc 34
+end
+
+note Markdown table cell of Pl[o, o+n): pipes escaped, newlines flattened
+fn bmd o ulong n ulong to void
+for i ulong n
+c = get Pl add o i
+if eq c 124
+bc 92
+bc 124
+continue
+end
+if eq c 10
+bc 32
+continue
+end
+if eq c 96
+bc 39
+continue
+end
+bc c
+end
+end
+
+fn bhash to void
+for i ulong 32
+c = get Hash i
+bhex ulong shr c 4
+bhex ulong and c 15
+end
+end

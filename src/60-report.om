@@ -1,0 +1,956 @@
+note babel 60-report: REPORT.md, report.json, omega/manifest.json, progress and the terminal summary.
+global Cnt ulong 8
+global Ah0 ulong 1
+global Ahn ulong 1
+global Ar0 ulong 1
+global Arn ulong 1
+global Tty ulong 1
+text Ver "0.1.0"
+text Prof "S1 c17-uint64-pure-v1"
+text LnC "c"
+text LnRs "rust"
+text LnPy "python"
+text LnGo "go"
+text LnZig "zig"
+text LnCpp "cpp"
+text LnOth "other"
+text VTr "TRANSLATED"
+text VUn "UNSUPPORTED("
+text VMi "MISSING_IMPLEMENTATION"
+text VFa "FAIL"
+text VNr "NOT_RUN"
+text VAb "ABSORBED"
+text VPe "PENDING"
+text VEx "EXPORTED"
+text KFn "function"
+text KDe "declaration"
+text KPp "preprocessor"
+text KEof "unterminated"
+text KFi "file"
+text KAb "header"
+text SgSplit "split"
+text SgImp "import"
+text SgLow "lower"
+text SgOmc "omega-check"
+text SgExp "export"
+text SgBld "build"
+text SgDif "differential"
+text SgOrc "oracle"
+text CGrn "[32m"
+text CRed "[31m"
+text CYel "[33m"
+text CMag "[35m"
+text CDim "[2m"
+text CBold "[1m"
+text COff "[0m"
+text CEl "[K"
+text Unk "unknown"
+text MAbs " absorbed"
+
+note ---------- small vocabulary ----------
+fn blang g ulong to void
+if eq g 1
+bs LnC
+ret
+end
+if eq g 2
+bs LnRs
+ret
+end
+if eq g 3
+bs LnPy
+ret
+end
+if eq g 4
+bs LnGo
+ret
+end
+if eq g 5
+bs LnZig
+ret
+end
+if eq g 6
+bs LnCpp
+ret
+end
+bs LnOth
+end
+
+fn bverdict u ulong to void
+s = get Ust u
+if eq s 1
+bs VTr
+ret
+end
+if eq s 2
+bs VUn
+bu get Urc u
+bc 41
+ret
+end
+if eq s 3
+bs VMi
+ret
+end
+if eq s 4
+bs VFa
+ret
+end
+if eq s 5
+bs VNr
+ret
+end
+if eq s 6
+bs VAb
+ret
+end
+if eq s 7
+bs VEx
+ret
+end
+bs VPe
+end
+
+fn bkind u ulong to void
+k = get Ukd u
+if eq k 1
+bs KFn
+ret
+end
+if eq k 2
+bs KDe
+ret
+end
+if eq k 3
+bs KPp
+ret
+end
+if eq k 4
+bs KEof
+ret
+end
+if eq k 5
+bs KFi
+ret
+end
+bs KAb
+end
+
+fn bstage u ulong to void
+g = get Usg u
+if eq g 1
+bs SgSplit
+ret
+end
+if eq g 2
+bs SgImp
+ret
+end
+if eq g 3
+bs SgLow
+ret
+end
+if eq g 4
+bs SgOmc
+ret
+end
+if eq g 5
+bs SgExp
+ret
+end
+if eq g 6
+bs SgBld
+ret
+end
+if eq g 7
+bs SgDif
+ret
+end
+bs SgOrc
+end
+
+note "path:l0-l1" of unit u
+fn bloc u ulong to void
+fi = get Ufi u
+bpl get F0 fi get Fl fi
+bc 58
+bu get Ul0 u
+if ne get Ul1 u get Ul0 u
+bc 45
+bu get Ul1 u
+end
+end
+
+note display name: the function name, or the latest identifier, or "-"
+fn bdisp u ulong to void
+if eq get Unn u 0
+bc 45
+ret
+end
+bname u
+end
+
+fn counts to void
+for i ulong 8
+put Cnt i 0
+end
+for u ulong get Nu 0
+s = get Ust u
+if lt s 8
+put Cnt s add get Cnt s 1
+end
+end
+end
+
+fn colon to bool
+ret eq get Col 0 1
+end
+
+note ANSI escape: ESC then s
+fn besc s view uchar * to void
+bc 27
+bs s
+end
+
+fn bcol u ulong to void
+if not colon
+ret
+end
+s = get Ust u
+if eq s 1
+besc CGrn
+end
+if eq s 2
+besc CYel
+end
+if eq s 3
+besc CMag
+end
+if eq s 4
+besc CRed
+end
+if ge s 5
+besc CDim
+end
+end
+
+fn boff to void
+if colon
+besc COff
+end
+end
+
+fn bbold to void
+if colon
+besc CBold
+end
+end
+
+note write Ob[m, mark) to fd and reset
+fn flush fd int m ulong to void
+w = write fd Ob m sub mark m
+reset m
+end
+
+note the text width of Ob[m, mark) in UTF-8 code points (continuation bytes are not counted)
+fn width m ulong to ulong
+c = ulong 0
+for i ulong sub mark m
+b = get Ob add m i
+if ne and b 192 128
+c = add c 1
+end
+end
+ret c
+end
+
+note pad the cell started at m to w columns
+fn pad m ulong w ulong to void
+k = width m
+if lt k w
+bsp sub w k
+end
+bc 32
+bc 32
+end
+
+note ---------- progress (stderr, only on a terminal) ----------
+note carriage return, erase line
+fn bcr to void
+bc 13
+besc CEl
+end
+text PrB "  "
+fn progress u ulong to void
+if eq get Tty 0 0
+ret
+end
+m = mark
+bcr
+bc 32
+bc 32
+bc 91
+bu add u 1
+bc 47
+bu get Nu 0
+bc 93
+bc 32
+bdisp u
+bs PrB
+bloc u
+flush 2 m
+end
+
+note end of progress: clear the line
+fn progend to void
+if eq get Tty 0 0
+ret
+end
+m = mark
+bcr
+flush 2 m
+end
+
+note ---------- terminal summary ----------
+text THead "babel "
+text TArr "  ->  "
+text TIn "  input     "
+text TOut "  output    "
+text TAd "  adapters  omega-mv "
+text TAdP "  (profile "
+text TFiles " files, "
+text TUnits " units\n\n"
+text TH1 "VERDICT"
+text TH2 "UNIT"
+text TH3 "WHERE"
+text TH4 "DETAIL"
+text TSum1 " translated   "
+text TSum2 " unsupported   "
+text TSum3 " missing implementation   "
+text TSum4 " fail   "
+text TSum5 " not run   "
+text TSum6 " absorbed\n"
+text TRep "  report    "
+text TRepF "/REPORT.md\n"
+text TTst "  tests     "
+text TTP "PASS (generated tests ran over the oracle outputs: diff/test.log)\n"
+text TTF "FAIL (see diff/test.log)\n"
+text TTN "NOT_RUN (no generated test harness for this target)\n"
+text TOk "translated = adapter exit 0, Omega check exit 0, and C / Omega / target outputs byte-identical on every vector\n"
+
+fn summary to void
+m = mark
+bbold
+bs THead
+bs Ver
+boff
+bc 32
+bc 32
+bpl get Rt0 0 get Rtn 0
+bs TArr
+blang get Lg 0
+bs NL
+bs TOut
+bout
+bs NL
+bs TAd
+bpl get Ah0 0 get Ahn 0
+bs TAdP
+bs Prof
+bc 41
+bs NL
+bs TIn
+bu get Nf 0
+bs TFiles
+bu get Nu 0
+bs TUnits
+flush 1 m
+table
+m = mark
+bs NL
+bc 32
+bc 32
+counts
+scount 1 TSum1
+scount 2 TSum2
+scount 3 TSum3
+scount 4 TSum4
+scount 5 TSum5
+scount 6 TSum6
+tstline
+bs TRep
+bout
+bs TRepF
+bc 32
+bc 32
+bs TOk
+flush 1 m
+end
+
+fn scount s ulong t view uchar * to void
+bu get Cnt s
+bs t
+end
+
+fn tstline to void
+t = get Tsr 0
+bs TTst
+if eq t 0
+bs TTP
+ret
+end
+if eq t 999
+bs TTN
+ret
+end
+bs TTF
+end
+
+note column widths from the data, capped
+fn table to void
+w1 = ulong len TH1
+w2 = ulong len TH2
+w3 = ulong len TH3
+for u ulong get Nu 0
+m = mark
+bverdict u
+w1 = umax w1 width m
+reset m
+bdisp u
+w2 = umax w2 width m
+reset m
+bloc u
+w3 = umax w3 width m
+reset m
+end
+w2 = umin w2 28
+w3 = umin w3 36
+m = mark
+bc 32
+bc 32
+c = mark
+bs TH1
+pad c w1
+c = mark
+bs TH2
+pad c w2
+c = mark
+bs TH3
+pad c w3
+bs TH4
+bs NL
+flush 1 m
+for u ulong get Nu 0
+trow u w1 w2 w3
+end
+end
+
+fn umax a ulong b ulong to ulong
+if gt a b
+ret a
+end
+ret b
+end
+
+fn umin a ulong b ulong to ulong
+if lt a b
+ret a
+end
+ret b
+end
+
+fn trow u ulong w1 ulong w2 ulong w3 ulong to void
+m = mark
+bc 32
+bc 32
+bcol u
+c = mark
+bverdict u
+pad c w1
+boff
+c = mark
+bdisp u
+pad c w2
+c = mark
+bloc u
+pad c w3
+bdetail u 96
+bs NL
+flush 1 m
+end
+
+note one-line detail: the reason, or the vector count for TRANSLATED, cut at w code points
+text DTr1 " vectors identical: original C, Omega, "
+fn bdetail u ulong w ulong to void
+c = mark
+if eq get Ust u 1
+bu get Unv u
+bs DTr1
+blang get Lg 0
+else
+bmd get Ur0 u get Urn u
+end
+cut c w
+end
+
+fn cut c ulong w ulong to void
+k = ulong 0
+i = c
+e = mark
+while lt i e bound 999999
+b = get Ob i
+if ne and b 192 128
+if eq k w
+put Ol 0 i
+bc 46
+bc 46
+bc 46
+ret
+end
+k = add k 1
+end
+i = add i 1
+end
+end
+
+note ---------- report.json ----------
+text JA "{\n  \"schema\": \"babel.report.v1\",\n  \"babel\": \""
+text JB "\",\n  \"input\": "
+text JC ",\n  \"output\": "
+text JD ",\n  \"target\": \""
+text JE "\",\n  \"profile\": \""
+text JF "\",\n  \"adapters\": {\"repo\": \"aien-dev/omega-mv\", \"head\": "
+text JG ", \"ref\": "
+text JH ", \"native_omc_sha256\": \""
+text JI "\"},\n  \"verdict_rule\": \"TRANSLATED = adapter exit 0, Omega check exit 0, and original C / Omega / target outputs byte-identical on every vector\",\n  \"toolchains\": {"
+text JJ "},\n  \"summary\": {"
+text JK "},\n  \"generated_tests\": \""
+text JL "\",\n  \"files\": ["
+text JM "\n  ],\n  \"units\": ["
+text JN "\n  ]\n}\n"
+text JQ "\": "
+text JCm ", "
+text JNl "\n    "
+text JT0 "\""
+text JTn "null"
+text JS1 "\"translated\": "
+text JS2 ", \"unsupported\": "
+text JS3 ", \"missing_implementation\": "
+text JS4 ", \"fail\": "
+text JS5 ", \"not_run\": "
+text JS6 ", \"absorbed\": "
+text JF1 "{\"path\": "
+text JF2 ", \"sha256\": \""
+text JF3 "\", \"bytes\": "
+text JF4 ", \"language\": \""
+text JF5 "\"}"
+text JU1 "{\"file\": "
+text JU2 ", \"line_start\": "
+text JU3 ", \"line_end\": "
+text JU4 ", \"kind\": \""
+text JU5 "\", \"name\": "
+text JU6 ", \"verdict\": \""
+text JU7 "\", \"stage\": \""
+text JU8 "\", \"exit_code\": "
+text JU9 ", \"reason\": "
+text JUa ", \"adapter_name\": "
+text JUb ", \"omega_name\": "
+text JUc ", \"vectors\": "
+text JUd ", \"omega_mismatches\": "
+text JUe ", \"target_mismatches\": "
+text JUf "}"
+text TlNm0 "cc"
+text TlNm1 "cargo"
+text TlNm2 "python3"
+text TlNm3 "c++"
+text TlNm4 "zig"
+text TlNm5 "go"
+text TsP "PASS"
+text TsF "FAIL"
+text TsN "NOT_RUN"
+
+fn bqpl o ulong n ulong to void
+bjq o n
+end
+
+fn bqnull o ulong n ulong to void
+if eq n 0
+bs JTn
+ret
+end
+bjq o n
+end
+
+fn btsr to void
+t = get Tsr 0
+if eq t 0
+bs TsP
+ret
+end
+if eq t 999
+bs TsN
+ret
+end
+bs TsF
+end
+
+fn jtool s ulong nm view uchar * to void
+if gt s 0
+bs JCm
+end
+bs JT0
+bs nm
+bs JQ
+if eq get Tok s 1
+bjq get Tv0 s get Tvn s
+else
+bs JTn
+end
+end
+
+fn jhead to void
+bs JA
+bs Ver
+bs JB
+bqpl get Rt0 0 get Rtn 0
+bs JC
+m = mark
+bout
+o = psave m sub mark m
+n = sub mark m
+reset m
+bqpl o n
+bs JD
+blang get Lg 0
+bs JE
+bs Prof
+bs JF
+bqnull get Ah0 0 get Ahn 0
+bs JG
+bqnull get Ar0 0 get Arn 0
+bs JH
+bs OmcPin
+bs JI
+jtool 0 TlNm0
+jtool 1 TlNm1
+jtool 2 TlNm2
+jtool 3 TlNm3
+jtool 4 TlNm4
+jtool 5 TlNm5
+bs JJ
+counts
+bs JS1
+bu get Cnt 1
+bs JS2
+bu get Cnt 2
+bs JS3
+bu get Cnt 3
+bs JS4
+bu get Cnt 4
+bs JS5
+bu get Cnt 5
+bs JS6
+bu get Cnt 6
+bs JK
+btsr
+bs JL
+end
+
+fn jfile f ulong to void
+if gt f 0
+bc 44
+end
+bs JNl
+bs JF1
+bqpl get F0 f get Fl f
+bs JF2
+bpl get Fh0 f 64
+bs JF3
+bu get Fsz f
+bs JF4
+blang get Flg f
+bs JF5
+end
+
+fn junit u ulong to void
+if gt u 0
+bc 44
+end
+bs JNl
+bs JU1
+fi = get Ufi u
+bqpl get F0 fi get Fl fi
+bs JU2
+bu get Ul0 u
+bs JU3
+bu get Ul1 u
+bs JU4
+bkind u
+bs JU5
+bqnull get Un0 u get Unn u
+bs JU6
+bverdict u
+bs JU7
+bstage u
+bs JU8
+bu get Urc u
+bs JU9
+bqnull get Ur0 u get Urn u
+junit2 u
+end
+
+fn junit2 u ulong to void
+bs JUa
+bqnull get Ua0 u get Uan u
+bs JUb
+bqnull get Uw0 u get Uwn u
+bs JUc
+bu get Unv u
+bs JUd
+bu get Umo u
+bs JUe
+bu get Umt u
+bs JUf
+end
+
+note report.json is built in the arena from m; the caller writes it to a file and/or stdout
+fn bjson to void
+jhead
+for f ulong get Nf 0
+jfile f
+end
+bs JM
+for u ulong get Nu 0
+junit u
+end
+bs JN
+end
+
+text PJson "report.json"
+text PMd "REPORT.md"
+text PMan "omega/manifest.json"
+
+note ---------- REPORT.md ----------
+text MA "# babel report\n\nGenerated by babel "
+text MB ". Every verdict below comes from a tool that ran in this pass; nothing is copied from a previous run.\n\n| | |\n|---|---|\n| input | `"
+text MC "` |\n| output | `"
+text MD "` |\n| target | "
+text ME " |\n| profile | "
+text MF " (pure functions of 0-6 `uint64_t` inputs: `+ - *` modulo 2^64, one return expression, at most 4096 bytes) |\n| adapters | aien-dev/omega-mv `"
+text MG "` (`"
+text MH "`), native omc sha256 `"
+text MI "` |\n| generated tests | "
+text MJ " |\n"
+text MTl "| "
+text MTm " | "
+text MTn " |\n"
+text MNo "not found"
+text MK "\n## Result\n\n"
+text ML "\n\n**Verdicts.** TRANSLATED: the adapters exited 0, the lowered unit passed the pinned omc, and the original C function, the Omega unit and the generated target printed byte-identical results on every test vector. UNSUPPORTED(rc): an adapter refused the unit with exit code rc; the first line of its stderr is the detail. MISSING_IMPLEMENTATION: no adapter exists for this construct, file or language yet. FAIL: a tool broke or two legs disagreed. NOT_RUN: a required tool was missing, so no verdict was reached. ABSORBED: the `#include <stdint.h>` line, which babel supplies to every unit.\n\n**Renames.** The S1 adapters accept only the function names `calc` or `omega_*`. babel hands every other function to them as `omega_<name>` and packages the result under the original name; the adapter name of each unit is listed in report.json (`adapter_name`).\n\n**Vectors.** Every unit runs on the 9 boundary values {0, 1, 2, 2^32-1, 2^32, 2^63-1, 2^63, 2^64-2, 2^64-1} (all combinations up to 3 inputs, 81 rows above that) plus 64 splitmix64 vectors from seed 20261026. The inputs and all three outputs are kept under `diff/<name>/`.\n\n## Units\n\n| verdict | unit | where | kind | stage | detail |\n|---|---|---|---|---|---|\n"
+text MM "\n## Input files\n\n`input/` is a byte copy of these files; each sha256 below was computed while copying.\n\n| file | language | bytes | sha256 |\n|---|---|---|---|\n"
+text MN "\n## Not walked\n\nDot entries (`.git`, `.cache`, ...), symbolic links, other non-regular files and `*.babel` folders are neither copied nor translated.\n"
+
+fn mtool s ulong nm view uchar * to void
+bs MTl
+bs nm
+bs MTm
+if eq get Tok s 1
+bmd get Tv0 s get Tvn s
+else
+bs MNo
+end
+bs MTn
+end
+
+fn mdhead to void
+bs MA
+bs Ver
+bs MB
+bpl get Rt0 0 get Rtn 0
+bs MC
+bout
+bs MD
+blang get Lg 0
+bs ME
+bs Prof
+bs MF
+if eq get Ahn 0 0
+bs Unk
+else
+bpl get Ah0 0 get Ahn 0
+end
+bs MG
+bpl get Ar0 0 get Arn 0
+bs MH
+bs OmcPin
+bs MI
+btsr
+bs MJ
+mtool 0 TlNm0
+mtool 1 TlNm1
+mtool 2 TlNm2
+mtool 3 TlNm3
+mtool 4 TlNm4
+mtool 5 TlNm5
+bs MK
+counts
+scount 1 TSum1
+scount 2 TSum2
+scount 3 TSum3
+scount 4 TSum4
+scount 5 TSum5
+bu get Cnt 6
+bs MAbs
+bs ML
+end
+
+fn mdunit u ulong to void
+bs MTl
+bverdict u
+bs MTm
+bc 96
+bdisp u
+bc 96
+bs MTm
+bloc u
+bs MTm
+bkind u
+bs MTm
+bstage u
+bs MTm
+if eq get Ust u 1
+bu get Unv u
+bs DTr1
+blang get Lg 0
+else
+bmd get Ur0 u get Urn u
+end
+bs MTn
+end
+
+fn mdfile f ulong to void
+bs MTl
+bmd get F0 f get Fl f
+bs MTm
+blang get Flg f
+bs MTm
+bu get Fsz f
+bs MTm
+bpl get Fh0 f 64
+bs MTn
+end
+
+fn bmdrep to void
+mdhead
+for u ulong get Nu 0
+mdunit u
+end
+bs MM
+for f ulong get Nf 0
+mdfile f
+end
+bs MN
+end
+
+note ---------- omega/manifest.json ----------
+text OA "{\n  \"schema\": \"babel.omega-manifest.v1\",\n  \"profile\": \""
+text OB "\",\n  \"adapters_head\": "
+text OC ",\n  \"units\": ["
+text OD "\n  ]\n}\n"
+text OE "{\"name\": "
+text OF ", \"source\": "
+text OG ", \"c\": \"omega/"
+text OH ".c\", \"omsa\": \"omega/"
+text OI ".omsa\", \"om\": "
+text OJ ", \"om_sha256\": "
+text OK "}"
+
+fn bmanifest to void
+bs OA
+bs Prof
+bs OB
+bqnull get Ah0 0 get Ahn 0
+bs OC
+k = ulong 0
+for u ulong get Nu 0
+if ne get Ukd u 1
+continue
+end
+if lt get Usg u 3
+continue
+end
+if gt k 0
+bc 44
+end
+k = add k 1
+bs JNl
+manunit u
+end
+bs OD
+end
+
+text OmNone "null"
+fn manunit u ulong to void
+bs OE
+c = mark
+bname u
+bjqob c
+bs OF
+c = mark
+bloc u
+bjqob c
+bs OG
+bname u
+bs OH
+bname u
+bs OI
+c = mark
+bouts DOmega
+bname u
+bs ExOm
+e = mark
+r = hfile c e
+reset c
+if lt r 0
+bs OmNone
+bs OJ
+bs OmNone
+else
+bc 34
+bs DOmega
+bname u
+bs ExOm
+bc 34
+bs OJ
+bc 34
+bhash
+bc 34
+end
+bs OK
+end
+
+note quote the arena bytes from c as a JSON string (moves them through the pool)
+fn bjqob c ulong to void
+n = sub mark c
+p = psave c n
+reset c
+bjq p n
+end
+
+note write REPORT.md, report.json and omega/manifest.json
+fn reports to void
+m = mark
+bmdrep
+w = wout m PMd
+bjson
+w = wout m PJson
+bmanifest
+w = wout m PMan
+end
+
+note --json: report.json on stdout
+fn jsonout to void
+m = mark
+bjson
+flush 1 m
+end

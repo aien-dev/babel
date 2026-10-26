@@ -1,0 +1,856 @@
+note babel 50-diff: toolchains, target builds and the differential test.
+note For every exported unit babel runs the same vectors through three legs: the ORIGINAL C function
+note (cc, verbatim text), the lowered Omega unit (pinned omc) and the generated target. A unit is
+note TRANSLATED only when all three outputs are byte-identical on every vector.
+global Bv ulong 9
+global Sm ulong 1
+global Tok ulong 8
+global Brc ulong 1
+global Trc ulong 1
+global Tsr ulong 1
+global Ubd ulong 1024
+text TnCc "cc"
+text TnCargo "cargo"
+text TnPy "python3"
+text TnCpp "g++"
+text TnCpp2 "c++"
+text TnZig "zig"
+text TnGo "go"
+text EvZig "ZIG="
+text EvGo "GO="
+text AVer "--version"
+text AVer2 "version"
+text ABuild "build"
+text ATest "test"
+text AOff "--offline"
+text AQuiet "--quiet"
+text AMan "--manifest-path"
+text AStd17 "-std=c17"
+text AStdx "-std=c++17"
+text AO0 "-O0"
+text Aw "-w"
+text Ao "-o"
+text AB "-B"
+text AExe "build-exe"
+text AOd "-O"
+text ADbg "Debug"
+text Alc "-lc"
+text AEmit "-femit-bin="
+text ADot "."
+text EvZg1 "ZIG_GLOBAL_CACHE_DIR="
+text EvZg2 "ZIG_LOCAL_CACHE_DIR="
+text EvGoc "GOCACHE="
+text WZg1 "zig-global"
+text WZg2 "zig-local"
+text WGoc "go-build"
+text WOrc "oracle"
+text WOmd "omega-driver"
+text PRsMan "rust/Cargo.toml"
+text PRsExe "rust/target/debug/babel_diff"
+text PCExe "c/.build/babel_diff"
+text PCBld "c/.build"
+text PCpBld "cpp/.build/"
+text PZExe "zig/.build/babel_diff"
+text PZBld "zig/.build"
+text PGoBld "go/.build/"
+text PVec "/vectors.txt"
+text POut1 "/c-original.out"
+text POut2 "/omega.out"
+text POut3 "/target.out"
+text PBlog "diff/build.log"
+text PBlogU "/build.log"
+text PTlog "diff/test.log"
+text RsOrc "differential oracle failed: the original C function did not build or run with cc (see diff/"
+text RsOrc2 "/oracle.c): "
+text RsOmd "Omega leg failed: the lowered unit plus the babel driver did not compile or run with the pinned omc (see diff/"
+text RsOmd2 "/driver.om): "
+text RsPrep "could not write the differential files under diff/"
+text RsTbd "target build failed (see diff/build.log): "
+text RsTbdU "target build failed (see diff/"
+text RsTbdU2 "/build.log): "
+text RsTrn "target driver failed on the vectors (see diff/"
+text RsTrn2 "/target.out): "
+text RsMo "Omega leg differs from the original C on "
+text RsMt "target output differs from the original C on "
+text RsOf " of "
+text RsVec " vectors (see diff/"
+text RsVe "/)"
+text RsNoCc "no C compiler (cc) on PATH: the differential oracle cannot run, so nothing can be called TRANSLATED"
+
+fn vinit to void
+put Bv 0 0
+put Bv 1 1
+put Bv 2 2
+put Bv 3 sub shl ulong 1 32 1
+put Bv 4 shl ulong 1 32
+put Bv 5 sub shl ulong 1 63 1
+put Bv 6 shl ulong 1 63
+put Bv 7 sub ulong 0 2
+put Bv 8 sub ulong 0 1
+end
+
+fn hilo h ulong l ulong to ulong
+ret or shl h 32 l
+end
+
+note splitmix64; seed fixed so every run uses the same vectors
+fn smx to ulong
+s = add get Sm 0 hilo 2654435769 2135587861
+put Sm 0 s
+z = mul xor s shr s 30 hilo 3210233709 484763065
+z = mul xor z shr z 27 hilo 2496678331 321982955
+ret xor z shr z 31
+end
+
+note systematic vector count for arity k: product of the 9 boundary values up to k = 3, 81 rows after
+fn nsys k ulong to ulong
+if eq k 0
+ret 1
+end
+if eq k 1
+ret 9
+end
+if eq k 2
+ret 81
+end
+if eq k 3
+ret 729
+end
+ret 81
+end
+
+fn sysval k ulong j ulong i ulong to ulong
+if le k 3
+d = ulong 1
+for t ulong sub sub k 1 i
+d = mul d 9
+end
+ret get Bv rem div j d 9
+end
+ret get Bv rem add j mul i add 1 div j 9 9
+end
+
+note vectors.txt for unit u: "id n" then one vector per line; stored in the pool (Uv0/Uvn, Unv)
+fn genvec u ulong to void
+k = get Uar u
+ns = nsys k
+nr = ulong 64
+if eq k 0
+nr = 0
+end
+put Sm 0 20261026
+m = mark
+bu get Uid u
+bc 32
+bu add ns nr
+bc 10
+for j ulong ns
+for i ulong k
+if gt i 0
+bc 32
+end
+bu sysval k j i
+end
+bc 10
+end
+for j ulong nr
+for i ulong k
+if gt i 0
+bc 32
+end
+bu smx
+end
+bc 10
+end
+n = sub mark m
+put Uv0 u psave m n
+put Uvn u n
+put Unv u add ns nr
+reset m
+end
+
+note tool slot s: 0 cc, 1 cargo, 2 python3, 3 g++, 4 zig, 5 go (env ZIG / GO override PATH)
+fn tfind s ulong nm view uchar * to void
+if which nm
+put Tok s 1
+put Tl0 s get Gv0 0
+put Tln s get Gvn 0
+end
+end
+
+fn tools to void
+tfind 0 TnCc
+tfind 1 TnCargo
+tfind 2 TnPy
+tfind 3 TnCpp
+if eq get Tok 3 0
+tfind 3 TnCpp2
+end
+if getenv EvZig
+put Tok 4 1
+put Tl0 4 get Gv0 0
+put Tln 4 get Gvn 0
+else
+tfind 4 TnZig
+end
+if getenv EvGo
+put Tok 5 1
+put Tl0 5 get Gv0 0
+put Tln 5 get Gvn 0
+else
+tfind 5 TnGo
+end
+for s ulong 6
+if eq get Tok s 1
+tver s
+end
+end
+end
+
+note first line of "<tool> --version" (zig/go: "version") into Tv0/Tvn
+fn tver s ulong to void
+m = mark
+rclr
+kenv
+kpl get Tl0 s get Tln s
+if ge s 4
+ktx AVer2
+else
+ktx AVer
+end
+a = mark
+bwk WkOut
+b = mark
+rset 2 a b
+put Rmg 0 1
+r = spawn
+reset m
+if ne r 0
+ret
+end
+a = mark
+bwk WkOut
+b = mark
+q = rfile a b
+reset m
+if le q 0
+ret
+end
+j = ulong 0
+while lt j ulong q bound 999999
+if eq get Fb j 10
+break
+end
+j = add j 1
+end
+if gt j 200
+j = 200
+end
+bfb 0 j
+put Tv0 s psave m j
+put Tvn s j
+reset m
+end
+
+note tool slot of the selected target
+fn tslot to ulong
+g = get Lg 0
+if eq g 1
+ret 0
+end
+if eq g 2
+ret 1
+end
+if eq g 3
+ret 2
+end
+if eq g 6
+ret 3
+end
+if eq g 5
+ret 4
+end
+ret 5
+end
+
+note argv helpers: <out>/<s>, <out>/<s><name><t>
+fn kout s view uchar * to void
+m = mark
+bouts s
+kob m sub mark m
+reset m
+end
+
+note <out>/<s><name> onto argv
+fn kouto s view uchar * u ulong to void
+m = mark
+bouts s
+bname u
+kob m sub mark m
+reset m
+end
+
+fn koutn s view uchar * u ulong t view uchar * to void
+m = mark
+bouts s
+bname u
+bs t
+kob m sub mark m
+reset m
+end
+
+fn ktool s ulong to void
+kpl get Tl0 s get Tln s
+end
+
+note stdin /dev/null, stdout and stderr merged into <out>/<s>
+fn rlog s view uchar * to void
+a = mark
+bouts s
+b = mark
+rset 2 a b
+put Rmg 0 1
+end
+
+note env-style NAME=<out>/.work/<s> argument
+fn kenvwk e view uchar * s view uchar * to void
+m = mark
+bs e
+bwk s
+kob m sub mark m
+reset m
+end
+
+fn mkout s view uchar * to void
+m = mark
+bouts s
+e = mark
+q = mkdirs m e
+reset m
+end
+
+note build the selected target project once (per unit for cpp and go, into Ubd); log diff/build.log
+fn tbuild to void
+g = get Lg 0
+s = tslot
+put Brc 0 0
+if eq get Tok s 0
+put Brc 0 255
+ret
+end
+m = mark
+rclr
+kenv
+if eq g 2
+ktool 1
+ktx ABuild
+ktx AOff
+ktx AQuiet
+ktx AMan
+kout PRsMan
+end
+if eq g 3
+ktool 2
+ktx AB
+kout PPyMain
+end
+if eq g 1
+mkout PCBld
+cbuild
+end
+if eq g 5
+mkout PZBld
+zbuild
+end
+if eq g 6
+reset m
+ubuild
+ret
+end
+if eq g 4
+reset m
+ubuild
+ret
+end
+rlog PBlog
+put Brc 0 spawn
+reset m
+end
+
+fn cbuild to void
+ktool 0
+ktx AStd17
+ktx AO0
+ktx Aw
+ktx Ao
+kout PCExe
+kout PCMain
+for u ulong get Nu 0
+if exported u
+koutn UCc u Ext_c
+end
+end
+end
+
+fn zbuild to void
+kenvwk EvZg1 WZg1
+kenvwk EvZg2 WZg2
+ktool 4
+ktx AExe
+ktx AOd
+ktx ADbg
+ktx Alc
+m = mark
+bs AEmit
+bouts PZExe
+kob m sub mark m
+reset m
+kout PZMain
+end
+
+note per-unit builds: cpp/diff/<name>.cpp with g++, go/<name> with go build
+fn ubuild to void
+g = get Lg 0
+if eq g 6
+mkout PCpBld
+else
+mkout PGoBld
+end
+for u ulong get Nu 0
+if exported u
+put Ubd u ubuild1 u
+end
+end
+end
+
+fn ubuild1 u ulong to ulong
+m = mark
+rclr
+kenv
+if eq get Lg 0 6
+ktool 3
+ktx AStdx
+ktx AO0
+ktx Aw
+ktx Ao
+kouto PCpBld u
+koutn PCpD u Ext_cp
+else
+kenvwk EvGoc WGoc
+ktool 5
+ktx ABuild
+ktx Ao
+kouto PGoBld u
+ktx ADot
+a = mark
+bouts UGo
+bname u
+b = mark
+rset 6 a b
+end
+a = mark
+bouts PDiff
+bname u
+b = mark
+q = mkdirs a b
+bs PBlogU
+b = mark
+rset 2 a b
+put Rmg 0 1
+r = spawn
+reset m
+ret r
+end
+
+note the target executable (and interpreter) for unit u onto argv
+fn ktarget u ulong to void
+g = get Lg 0
+if eq g 2
+kout PRsExe
+end
+if eq g 3
+kenv
+ktool 2
+ktx AB
+kout PPyMain
+end
+if eq g 1
+kout PCExe
+end
+if eq g 5
+kout PZExe
+end
+if eq g 6
+kouto PCpBld u
+end
+if eq g 4
+kouto PGoBld u
+end
+end
+
+note run argv with stdin diff/<name>/vectors.txt and stdout diff/<name><t>
+fn runvec u ulong t view uchar * to ulong
+a = mark
+bouts PDiff
+bname u
+bs PVec
+b = mark
+bouts PDiff
+bname u
+bs t
+c = mark
+bwk WkErr
+d = mark
+rset 0 a b
+rset 2 b c
+rset 4 c d
+r = spawn
+reset a
+ret r
+end
+
+note diff/<name>/ with vectors.txt, oracle.c and driver.om
+fn dprep u ulong to bool
+m = mark
+bouts PDiff
+bname u
+e = mark
+q = mkdirs m e
+reset m
+genvec u
+m = mark
+bpl get Uv0 u get Uvn u
+c = mark
+bouts PDiff
+bname u
+bs PVec
+p = mark
+w = wfile m c c p
+reset m
+genoracle u
+ret genomdrv u
+end
+
+note the original C leg; on success the oracle output is kept in the pool (Uo0/Uon)
+fn leg1 u ulong to ulong
+m = mark
+rclr
+kenv
+ktool 0
+ktx AStd17
+ktx AO0
+ktx Aw
+ktx Ao
+a = mark
+bwk WOrc
+kob a sub mark a
+reset a
+koutn PDiff u POrc
+put Rmg 0 1
+a = mark
+bwk WkErr
+b = mark
+rset 2 a b
+r = spawn
+reset m
+if ne r 0
+ret r
+end
+rclr
+krst
+a = mark
+bwk WOrc
+kob a sub mark a
+reset a
+r = runvec u POut1
+reset m
+if ne r 0
+ret r
+end
+a = mark
+bouts PDiff
+bname u
+bs POut1
+b = mark
+q = rfile a b
+reset m
+if lt q 0
+ret 254
+end
+if ne nlines ulong q get Unv u
+ret 253
+end
+bfb 0 ulong q
+put Uo0 u psave m ulong q
+put Uon u ulong q
+reset m
+ret 0
+end
+
+fn nlines n ulong to ulong
+c = ulong 0
+for i ulong n
+if eq get Fb i 10
+c = add c 1
+end
+end
+ret c
+end
+
+note the Omega leg: driver.om through the pinned omc, then run
+fn leg2 u ulong to ulong
+m = mark
+rclr
+krst
+k = mark
+bomc
+kob k sub mark k
+reset k
+a = mark
+bouts PDiff
+bname u
+bs POmd
+b = mark
+bwk WOmd
+c = mark
+bwk WkErr
+d = mark
+rset 0 a b
+rset 2 b c
+rset 4 c d
+r = spawn
+if ne r 0
+reset m
+ret r
+end
+q = chmod Ob b sub c b 493
+rclr
+krst
+kob b sub c b
+reset m
+r = runvec u POut2
+reset m
+ret r
+end
+
+note lines of the file <out>/diff/<name><t> that differ from the oracle output
+fn mism u ulong t view uchar * to ulong
+m = mark
+bouts PDiff
+bname u
+bs t
+b = mark
+q = rfile m b
+reset m
+n = get Unv u
+if lt q 0
+ret n
+end
+ret mcount u ulong q
+end
+
+note compare Fb[0, fe) line by line with the oracle output of unit u
+fn mcount u ulong fe ulong to ulong
+put Cv 0 get Uo0 u
+oe = add get Uo0 u get Uon u
+f = ulong 0
+nb = ulong 0
+for j ulong get Unv u
+o = get Cv 0
+e = lnend o oe
+g = fend f fe
+if not fbpl f sub g f o sub e o
+nb = add nb 1
+end
+put Cv 0 add e 1
+f = add g 1
+if gt f fe
+f = fe
+end
+end
+if lt f fe
+nb = add nb 1
+end
+ret nb
+end
+
+fn fend f ulong e ulong to ulong
+i = f
+while lt i e bound 999999
+if eq get Fb i 10
+ret i
+end
+i = add i 1
+end
+ret e
+end
+
+fn fbpl a ulong an ulong b ulong bn ulong to bool
+if ne an bn
+ret false
+end
+for i ulong an
+if ne get Fb add a i get Pl add b i
+ret false
+end
+end
+ret true
+end
+
+note "<s><k> of <n> vectors (see diff/<name>/)" as the unit reason
+fn whymis u ulong s view uchar * k ulong to void
+m = mark
+bs s
+bu k
+bs RsOf
+bu get Unv u
+bs RsVec
+bname u
+bs RsVe
+ureasob u m
+end
+
+fn whyrc u ulong s view uchar * rc ulong to void
+m = mark
+bs s
+bs RsExit
+bu rc
+ureasob u m
+end
+
+note s <name> t "exit rc"
+fn whyrcn u ulong s view uchar * t view uchar * rc ulong to void
+m = mark
+bs s
+bname u
+bs t
+bs RsExit
+bu rc
+ureasob u m
+end
+
+note one exported unit through all three legs
+fn diffunit u ulong to void
+progress u
+if not dprep u
+setst u 4 7 0
+ureason u RsPrep
+ret
+end
+r = leg1 u
+if ne r 0
+setst u 4 8 r
+whyrcn u RsOrc RsOrc2 r
+ret
+end
+r = leg2 u
+if ne r 0
+setst u 4 7 r
+whyrcn u RsOmd RsOmd2 r
+ret
+end
+k = mism u POut2
+put Umo u k
+if gt k 0
+setst u 4 7 0
+whymis u RsMo k
+ret
+end
+legt u
+end
+
+fn legt u ulong to void
+if eq get Tok tslot 0
+setst u 5 6 0
+ureason u RsNoTl
+ret
+end
+b = get Brc 0
+if ne b 0
+setst u 4 6 b
+whyrc u RsTbd b
+ret
+end
+b = get Ubd u
+if ne b 0
+setst u 4 6 b
+whyrcn u RsTbdU RsTbdU2 b
+ret
+end
+rclr
+kenv
+ktarget u
+r = runvec u POut3
+if ne r 0
+setst u 4 7 r
+whyrcn u RsTrn RsTrn2 r
+ret
+end
+k = mism u POut3
+put Umt u k
+if gt k 0
+setst u 4 7 0
+whymis u RsMt k
+ret
+end
+setst u 1 7 0
+end
+
+note generated tests (rust, python): cargo test / unittest over the oracle outputs; Tsr 999 = not run
+fn ttests to void
+put Tsr 0 999
+g = get Lg 0
+if eq get Tok tslot 0
+ret
+end
+if not anycase
+ret
+end
+m = mark
+rclr
+kenv
+if eq g 2
+genrstest
+ktool 1
+ktx ATest
+ktx AOff
+ktx AQuiet
+ktx AMan
+kout PRsMan
+end
+if eq g 3
+genpytest
+ktool 2
+ktx AB
+kout PPyTst
+end
+if lt g 2
+reset m
+ret
+end
+if gt g 3
+reset m
+ret
+end
+rlog PTlog
+put Tsr 0 spawn
+reset m
+end
+
+note whole differential stage: units still EXPORTED become TRANSLATED, FAIL or NOT_RUN
+fn difftest to void
+vinit
+tbuild
+for u ulong get Nu 0
+if not exported u
+continue
+end
+if eq get Tok 0 0
+setst u 5 8 0
+ureason u RsNoCc
+continue
+end
+diffunit u
+end
+ttests
+end

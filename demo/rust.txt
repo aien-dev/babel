@@ -1,0 +1,32 @@
+$ babel sample --to rust --adapters <omega-mv 2d4c6407 adapters>
+babel 0.1.0  /tmp/bbx/demo/sample  ->  rust
+  output    /tmp/bbx/demo/sample.babel
+  adapters  omega-mv 2d4c640702c82b8deb8a296407aadf660dac7fc7  (profile S1 c17-uint64-pure-v1)
+  input     4 files, 19 units
+
+  VERDICT                 UNIT     WHERE              DETAIL
+  ABSORBED                -        src/hash.c:1       absorbed: '#include <stdint.h>' is the S1 profile header; babel adds it to every unit
+  TRANSLATED              fold     src/hash.c:3-5     145 vectors identical: original C, Omega, rust
+  TRANSLATED              square   src/hash.c:7-9     73 vectors identical: original C, Omega, rust
+  ABSORBED                -        src/mix.c:1        absorbed: '#include <stdint.h>' is the S1 profile header; babel adds it to every unit
+  MISSING_IMPLEMENTATION  -        src/mix.c:2        preprocessor directive: no adapter translates C preprocessing (S1 accepts only the leading '#inc...
+  MISSING_IMPLEMENTATION  -        src/mix.c:3        preprocessor directive: no adapter translates C preprocessing (S1 accepts only the leading '#inc...
+  TRANSLATED              add3     src/mix.c:7-9      793 vectors identical: original C, Omega, rust
+  TRANSLATED              poly     src/mix.c:11-13    145 vectors identical: original C, Omega, rust
+  UNSUPPORTED(68)         zero     src/mix.c:15-17    C_IMPORT_UNSUPPORTED_ARITHMETIC
+  TRANSLATED              mix6     src/mix.c:19-21    145 vectors identical: original C, Omega, rust
+  UNSUPPORTED(68)         scale    src/mix.c:25-27    C_IMPORT_UNSUPPORTED_ARITHMETIC
+  UNSUPPORTED(69)         pick     src/mix.c:29-34    C_IMPORT_UNSUPPORTED_CONSTRUCT
+  MISSING_IMPLEMENTATION  counter  src/mix.c:36       top-level declaration (prototype, global, type or typedef): no adapter translates C declarations...
+  UNSUPPORTED(69)         bump     src/mix.c:38-41    C_IMPORT_UNSUPPORTED_CONSTRUCT
+  MISSING_IMPLEMENTATION  pair     src/mix.c:43-46    top-level declaration (prototype, global, type or typedef): no adapter translates C declarations...
+  UNSUPPORTED(66)         first    src/mix.c:48-50    C_IMPORT_UNSUPPORTED_TYPE
+  UNSUPPORTED(72)         hello    src/mix.c:52-54    C_IMPORT_UNSUPPORTED_PREPROCESSOR
+  UNSUPPORTED(69)         grab     src/mix.c:56-58    C_IMPORT_UNSUPPORTED_CONSTRUCT
+  MISSING_IMPLEMENTATION  -        tools/report.py:1  no babel splitter for python sources yet: the omega-mv python-import adapter takes one function ...
+
+  5 translated   7 unsupported   5 missing implementation   0 fail   0 not run   2 absorbed
+  tests     PASS (generated tests ran over the oracle outputs: diff/test.log)
+  report    /tmp/bbx/demo/sample.babel/REPORT.md
+  translated = adapter exit 0, Omega check exit 0, and C / Omega / target outputs byte-identical on every vector
+rc=0

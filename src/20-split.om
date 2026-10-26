@@ -1,0 +1,630 @@
+note babel 20-split: input walk, file table, C top-level item scanner, unit table.
+note Files: relative path F0/Fl (pool), size Fsz, sha256 hex Fh0 (pool, 64 bytes), language Flg.
+global F0 ulong 2048
+global Fl ulong 2048
+global Fsz ulong 2048
+global Fh0 ulong 2048
+global Flg ulong 2048
+global Nf ulong 1
+note Units: file Ufi, kind Ukd, lines Ul0/Ul1, text Ut0/Utn, name Un0/Unn, adapter name Ua0/Uan,
+note Omega name Uw0/Uwn, status Ust, stage Usg, exit code Urc, reason Ur0/Urn, arity Uar, driver id Uid,
+note vectors Uv0/Uvn (pool), count Unv, oracle output Uo0/Uon, mismatches Umo (Omega) and Umt (target).
+global Ufi ulong 1024
+global Ukd ulong 1024
+global Ul0 ulong 1024
+global Ul1 ulong 1024
+global Ut0 ulong 1024
+global Utn ulong 1024
+global Un0 ulong 1024
+global Unn ulong 1024
+global Ua0 ulong 1024
+global Uan ulong 1024
+global Uw0 ulong 1024
+global Uwn ulong 1024
+global Ust ulong 1024
+global Usg ulong 1024
+global Urc ulong 1024
+global Ur0 ulong 1024
+global Urn ulong 1024
+global Uar ulong 1024
+global Uid ulong 1024
+global Uv0 ulong 1024
+global Uvn ulong 1024
+global Unv ulong 1024
+global Uo0 ulong 1024
+global Uon ulong 1024
+global Umo ulong 1024
+global Umt ulong 1024
+global Uno ulong 1024
+global Nu ulong 1
+note scanner state
+global Sx ulong 1
+global Sln ulong 1
+global Sfn ulong 1
+global Sn0 ulong 1
+global Sn1 ulong 1
+global Si0 ulong 1
+global Si1 ulong 1
+global Sp0 ulong 1
+global Sp1 ulong 1
+text ExC ".c"
+text ExH ".h"
+text ExRs ".rs"
+text ExPy ".py"
+text ExGo ".go"
+text ExZig ".zig"
+text ExCpp ".cpp"
+text ExCc ".cc"
+text ExCxx ".cxx"
+text ExHpp ".hpp"
+text ExBab ".babel"
+text IncStd "#include <stdint.h>"
+text WVoid "void"
+text NmCalc "calc"
+text NmPfx "omega_"
+
+note language codes: 0 other, 1 c, 2 rust, 3 python, 4 go, 5 zig, 6 cpp
+fn langof o ulong n ulong to ulong
+if plsuf o n ExC
+ret 1
+end
+if plsuf o n ExH
+ret 1
+end
+if plsuf o n ExRs
+ret 2
+end
+if plsuf o n ExPy
+ret 3
+end
+if plsuf o n ExGo
+ret 4
+end
+if plsuf o n ExZig
+ret 5
+end
+if plsuf o n ExCpp
+ret 6
+end
+if plsuf o n ExCc
+ret 6
+end
+if plsuf o n ExCxx
+ret 6
+end
+if plsuf o n ExHpp
+ret 6
+end
+ret 0
+end
+
+fn addfile r0 ulong r1 ulong to void
+n = get Nf 0
+if ge n 2048
+put Cap 0 1
+ret
+end
+p = psave r0 sub r1 r0
+put F0 n p
+put Fl n sub r1 r0
+put Flg n langof p sub r1 r0
+put Nf 0 add n 1
+end
+
+note walk directory Ob[p0, p1) whose path relative to the input root is Ob[r0, r1)
+note dot entries and *.babel output folders are skipped; depth is limited to 24
+fn walk p0 ulong p1 ulong r0 ulong r1 ulong depth ulong to void
+if gt depth 24
+put Cap 0 1
+ret
+end
+m = mark
+e = dirrecs p0 p1
+if eq e 0
+reset m
+ret
+end
+o = m
+while lt o e bound 999999
+o = walkent o p0 p1 r0 r1 depth
+end
+reset m
+end
+
+fn walkent o ulong p0 ulong p1 ulong r0 ulong r1 ulong depth ulong to ulong
+ty = get Ob o
+n = add o 1
+k = n
+while ne get Ob k 0 bound 4096
+k = add k 1
+end
+if eq get Ob n 46
+ret add k 1
+end
+c0 = mark
+bob p0 sub p1 p0
+bc 47
+bob n sub k n
+c1 = mark
+if gt r1 r0
+bob r0 sub r1 r0
+bc 47
+end
+bob n sub k n
+c2 = mark
+t = ftype c0 c1
+if eq t 2
+if not obteq sub c2 len ExBab len ExBab ExBab
+walk c0 c1 c1 c2 add depth 1
+end
+end
+if eq t 1
+addfile c1 c2
+end
+reset c0
+ret add k 1
+end
+
+note lexicographic order of files by relative path (insertion sort over the table)
+fn pllt a ulong an ulong b ulong bn ulong to bool
+n = an
+if lt bn n
+n = bn
+end
+for i ulong n
+x = get Pl add a i
+y = get Pl add b i
+if lt x y
+ret true
+end
+if gt x y
+ret false
+end
+end
+ret lt an bn
+end
+
+fn fswap i ulong j ulong to void
+t = get F0 i
+put F0 i get F0 j
+put F0 j t
+t = get Fl i
+put Fl i get Fl j
+put Fl j t
+t = get Flg i
+put Flg i get Flg j
+put Flg j t
+end
+
+fn fsort to void
+n = get Nf 0
+i = ulong 1
+while lt i n bound 4096
+j = i
+while gt j 0 bound 4096
+a = sub j 1
+if not pllt get F0 j get Fl j get F0 a get Fl a
+break
+end
+fswap j a
+j = a
+end
+i = add i 1
+end
+end
+
+fn newunit fi ulong kind ulong l0 ulong l1 ulong to ulong
+u = get Nu 0
+if ge u 1024
+put Cap 0 1
+ret 1023
+end
+put Ufi u fi
+put Ukd u kind
+put Ul0 u l0
+put Ul1 u l1
+put Ust u 0
+put Usg u 1
+put Urc u 0
+put Urn u 0
+put Nu 0 add u 1
+ret u
+end
+
+fn ureason u ulong s view uchar * to void
+put Ur0 u ptext s
+put Urn u len s
+end
+
+note reason built on the arena from mark m
+fn ureasob u ulong m ulong to void
+put Ur0 u psave m sub mark m
+put Urn u sub mark m
+reset m
+end
+
+fn isid c uchar to bool
+if eq c 95
+ret true
+end
+if ge c 97
+ret le c 122
+end
+if ge c 65
+ret le c 90
+end
+if ge c 48
+ret le c 57
+end
+ret false
+end
+
+fn isidst c uchar to bool
+if ge c 48
+if le c 57
+ret false
+end
+end
+ret isid c
+end
+
+note skip from Fb[i] (a quote) to just past the matching close quote
+fn skipq i ulong to ulong
+n = get Fn 0
+q = get Fb i
+j = add i 1
+while lt j n bound 999999
+c = get Fb j
+if eq c 92
+j = add j 2
+continue
+end
+if eq c 10
+put Sln 0 add get Sln 0 1
+end
+if eq c q
+ret add j 1
+end
+j = add j 1
+end
+ret n
+end
+
+note skip a comment at Fb[i] ('/' then '/' or '*'); returns the index after it
+fn skipcm i ulong to ulong
+n = get Fn 0
+if eq get Fb add i 1 47
+j = i
+while lt j n bound 999999
+if eq get Fb j 10
+ret j
+end
+j = add j 1
+end
+ret n
+end
+j = add i 2
+while lt j n bound 999999
+c = get Fb j
+if eq c 10
+put Sln 0 add get Sln 0 1
+end
+if eq c 42
+if lt add j 1 n
+if eq get Fb add j 1 47
+ret add j 2
+end
+end
+end
+j = add j 1
+end
+ret n
+end
+
+fn iscmt i ulong to bool
+if ne get Fb i 47
+ret false
+end
+n = get Fn 0
+if ge add i 1 n
+ret false
+end
+c = get Fb add i 1
+if eq c 47
+ret true
+end
+ret eq c 42
+end
+
+note scan one top-level item starting at Fb[i]. Sets Sx (end), Sfn (1 function definition,
+note 2 declaration, 4 runs into end of file), Sn0/Sn1 (name), Sp0/Sp1 (parameter list inside parens)
+fn citem i ulong to void
+n = get Fn 0
+dep = ulong 0
+pd = ulong 0
+last = uchar 0
+nm = false
+put Sfn 0 4
+put Sn0 0 0
+put Sn1 0 0
+put Si0 0 0
+put Si1 0 0
+put Sp0 0 0
+put Sp1 0 0
+while lt i n bound 999999
+c = get Fb i
+if eq c 10
+put Sln 0 add get Sln 0 1
+i = add i 1
+continue
+end
+if iscmt i
+i = skipcm i
+continue
+end
+if le c 32
+i = add i 1
+continue
+end
+if eq c 34
+i = skipq i
+last = c
+continue
+end
+if eq c 39
+i = skipq i
+last = c
+continue
+end
+if isidst c
+i = cident i dep pd
+last = 97
+continue
+end
+if eq c 40
+if eq dep 0
+if eq pd 0
+if not nm
+nm = true
+put Sn0 0 get Si0 0
+put Sn1 0 get Si1 0
+put Sp0 0 add i 1
+end
+end
+end
+pd = add pd 1
+end
+if eq c 41
+if gt pd 0
+pd = sub pd 1
+end
+if eq dep 0
+if eq pd 0
+if eq get Sp1 0 0
+put Sp1 0 i
+end
+end
+end
+end
+if eq c 123
+if eq dep 0
+if eq pd 0
+if eq last 41
+put Sfn 0 1
+end
+end
+end
+dep = add dep 1
+end
+if eq c 125
+if gt dep 0
+dep = sub dep 1
+end
+if eq dep 0
+if eq get Sfn 0 1
+put Sx 0 add i 1
+ret
+end
+end
+end
+if eq c 59
+if eq dep 0
+if eq pd 0
+if ne get Sfn 0 1
+put Sfn 0 2
+put Sx 0 add i 1
+ret
+end
+end
+end
+end
+last = c
+i = add i 1
+end
+put Sfn 0 4
+put Sx 0 n
+end
+
+note identifier at Fb[i]; at top level it becomes the latest identifier (Si0/Si1)
+fn cident i ulong dep ulong pd ulong to ulong
+n = get Fn 0
+j = i
+while lt j n bound 999999
+if not isid get Fb j
+break
+end
+j = add j 1
+end
+if eq dep 0
+if eq pd 0
+put Si0 0 i
+put Si1 0 j
+end
+end
+ret j
+end
+
+note preprocessor line from Fb[i] ('#'), with backslash continuations; returns the index of its newline
+fn cpre i ulong to ulong
+n = get Fn 0
+j = i
+while lt j n bound 999999
+c = get Fb j
+if eq c 10
+if gt j i
+if eq get Fb sub j 1 92
+put Sln 0 add get Sln 0 1
+j = add j 1
+continue
+end
+end
+ret j
+end
+j = add j 1
+end
+ret n
+end
+
+fn fbteq o ulong n ulong s view uchar * to bool
+if ne n len s
+ret false
+end
+for i ulong n
+if ne get Fb add o i get s i
+ret false
+end
+end
+ret true
+end
+
+note arity from the parameter list Fb[a, b): 0 for "" or "void", else top-level commas + 1
+fn carity a ulong b ulong to ulong
+s = a
+while lt s b bound 999999
+if gt get Fb s 32
+break
+end
+s = add s 1
+end
+e = b
+while gt e s bound 999999
+if gt get Fb sub e 1 32
+break
+end
+e = sub e 1
+end
+if eq s e
+ret 0
+end
+if fbteq s sub e s WVoid
+ret 0
+end
+k = ulong 1
+d = ulong 0
+for i ulong sub e s
+c = get Fb add s i
+if eq c 40
+d = add d 1
+end
+if eq c 41
+d = sub d 1
+end
+if eq c 44
+if eq d 0
+k = add k 1
+end
+end
+end
+ret k
+end
+
+text RsPre "preprocessor directive: no adapter translates C preprocessing (S1 accepts only the leading `#include <stdint.h>`, which babel supplies)"
+text RsDecl "top-level declaration (prototype, global, type or typedef): no adapter translates C declarations; S1 covers one pure u64 function per unit"
+text RsEof "unterminated item at end of file: babel could not find the end of this top-level item"
+text RsAbs "absorbed: `#include <stdint.h>` is the S1 profile header; babel adds it to every unit"
+
+note split the C file fi (already in Fb) into units
+fn csplit fi ulong to void
+n = get Fn 0
+put Sln 0 1
+i = ulong 0
+while lt i n bound 999999
+c = get Fb i
+if eq c 10
+put Sln 0 add get Sln 0 1
+i = add i 1
+continue
+end
+if iscmt i
+i = skipcm i
+continue
+end
+if le c 32
+i = add i 1
+continue
+end
+l0 = get Sln 0
+if eq c 35
+e = cpre i
+u = newunit fi 3 l0 get Sln 0
+ctext u i e
+if fbteq i sub e i IncStd
+put Ukd u 6
+put Ust u 6
+ureason u RsAbs
+else
+put Ust u 3
+ureason u RsPre
+end
+i = e
+continue
+end
+citem i
+e = get Sx 0
+k = get Sfn 0
+u = newunit fi k l0 get Sln 0
+ctext u i e
+cname u
+if eq k 1
+put Uar u carity get Sp0 0 get Sp1 0
+end
+if eq k 2
+put Ust u 3
+ureason u RsDecl
+end
+if eq k 4
+put Ust u 3
+ureason u RsEof
+end
+i = e
+end
+end
+
+fn ctext u ulong a ulong b ulong to void
+m = mark
+bfb a sub b a
+put Ut0 u psave m sub b a
+put Utn u sub b a
+put Sx 0 a
+reset m
+end
+
+note unit name: the identifier before the first top-level '(' or else the latest top-level identifier;
+note its offset inside the unit text goes to Uno (used for the adapter rename)
+fn cname u ulong to void
+a = get Sn0 0
+b = get Sn1 0
+if eq b 0
+a = get Si0 0
+b = get Si1 0
+end
+if eq b 0
+ret
+end
+m = mark
+bfb a sub b a
+put Un0 u psave m sub b a
+put Unn u sub b a
+put Uno u sub a get Sx 0
+reset m
+end
