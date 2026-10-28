@@ -102,3 +102,15 @@ The only shell is in `build.sh` and `tests/run.sh`, which coordinate the build a
 ## Licence
 
 Apache-2.0 with the LLVM exception ([LICENSE](LICENSE), [NOTICE](NOTICE)). `build.sh` compiles babel's source together with two Apache-2.0 files from aien-dev/omega-mv at `0b77e6ea2`: the OM-2 compiler `seed/out/omc` and the SHA-256 unit `om/sha256/sha256-om2.om`. It checks the sha256 digest of both files.
+
+## Human-Directed Agentic Engineering
+
+Development follows Human-Directed Agentic Engineering (HDAE): humans define goals,
+architecture, constraints, acceptance criteria, and stopping points; agents implement,
+execute checks, diagnose failures, and revise within those boundaries. Human review
+retains responsibility for claims, acceptance, and release decisions.
+
+For the documented method and a systems-software case study, see Gregory M. Kurtzer,
+[*Ginux: Building an Independent Kernel That Runs Linux Userspace through
+Human-Directed Agentic Engineering* (2026)](https://doi.org/10.5281/zenodo.23682548).
+This citation describes the development method, not runtime autonomy or an endorsement.
