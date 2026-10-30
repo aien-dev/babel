@@ -4,32 +4,32 @@
       "children": [
         {
           "digest": "af8fe5d090009428c3a7f7a6207bb8b53d6b2ee9ffd1c2c06e494d04f36fd119",
-          "last_commit": "3d13ecf",
+          "last_commit": "13ad42d",
           "name": "examples",
           "purpose": "sample input mixing S1 and unsupported code"
         },
         {
           "digest": "a7d728a20559ca35eedad6b7de962b45a98668a39463eb7f6452dc47b4390238",
-          "last_commit": "12fcc43",
+          "last_commit": "13ad42d",
           "name": "src",
           "purpose": "babel driver in Omega, compiled in file order by build.sh"
         },
         {
-          "digest": "7082d51f45e8e1ee8af310e499ba4e701e456065b0a92860c6fea66b23f45b83",
-          "last_commit": "12fcc43",
+          "digest": "dd282acfe6e92b7f93b9262d0eecf2cb2a354cbb4f5624f48434af0614fa1579",
+          "last_commit": "13ad42d",
           "name": "tests",
           "purpose": "independent checks of babel output, incl. mutated-oracle negative control"
         }
       ],
-      "children_root": "sha256:2cbd1ce44f4fe07f85ab08dc2689c4d1777098c50776c872522f9de2219eee7e",
-      "compiled_at": "2026-10-26T20:53:05Z",
+      "children_root": "sha256:dc6ffb084a85883f9499e594ea5a6bce59505a0433e4a02b0efaa75e2f111e2d",
+      "compiled_at": "2026-10-28T21:30:12Z",
       "compiler": "crumb-compile/1",
-      "digest": "sha256:c2235a3f156d9cb0b5e688a20cdfc0f8f6a0a148b75f8dd4f0dbb60911fdec73",
+      "digest": "sha256:894cb1341d1429c8a6c11cdf8348ce4761ad9b04ce1ffc2b17607e504485f942",
       "evidence_files": 0,
       "evidence_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "files": 30,
-      "generated_at_commit": "12fcc43fdd5d0c0304a9f3bb7e6b876a55de0b1e",
-      "source_tree": "sha256:2f4b9f97bfa45a0f14368ec906e8a361b2baf4a7efd1862f48c3cab06a9a05f7"
+      "generated_at_commit": "13ad42d9c3383774f34caf9087bf5f7d9d3d675c",
+      "source_tree": "sha256:686ed332e9343a3c30ae0c81940788aa5650355e772e5822687daa5a1f4c7b64"
     }
   },
   "name": "babel",
