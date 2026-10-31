@@ -378,6 +378,7 @@ scount 4 TSum4
 scount 5 TSum5
 scount 6 TSum6
 tstline
+csline
 bs TRep
 bout
 bs TRepF
@@ -525,7 +526,8 @@ text JH ", \"native_omc_sha256\": \""
 text JI "\"},\n  \"verdict_rule\": \"TRANSLATED = adapter exit 0, Omega check exit 0, and original C / Omega / target outputs byte-identical on every vector\",\n  \"toolchains\": {"
 text JJ "},\n  \"summary\": {"
 text JK "},\n  \"generated_tests\": \""
-text JL "\",\n  \"files\": ["
+text JL "\",\n  \"completion\": "
+text JL2 ",\n  \"files\": ["
 text JM "\n  ],\n  \"units\": ["
 text JN "\n  ]\n}\n"
 text JQ "\": "
@@ -654,6 +656,8 @@ bu get Cnt 6
 bs JK
 btsr
 bs JL
+cjson
+bs JL2
 end
 
 fn jfile f ulong to void
@@ -748,7 +752,7 @@ text MNo "not found"
 text MK "\n## Result\n\n"
 text ML "\n\n**Verdicts.** TRANSLATED: the adapters exited 0, the lowered unit passed the pinned omc, and the original C function, the Omega unit and the generated target printed byte-identical results on every test vector. UNSUPPORTED(rc): an adapter refused the unit with exit code rc; the first line of its stderr is the detail. MISSING_IMPLEMENTATION: no adapter exists for this construct, file or language yet. FAIL: a tool broke or two legs disagreed. NOT_RUN: a required tool was missing, so no verdict was reached. ABSORBED: the `#include <stdint.h>` line, which babel supplies to every unit.\n\n**Renames.** The S1 adapters accept only the function names `calc` or `omega_*`. babel hands every other function to them as `omega_<name>` and packages the result under the original name; the adapter name of each unit is listed in report.json (`adapter_name`).\n\n**Vectors.** Every unit runs on the 9 boundary values {0, 1, 2, 2^32-1, 2^32, 2^63-1, 2^63, 2^64-2, 2^64-1} (all combinations up to 3 inputs, 81 rows above that) plus 64 splitmix64 vectors from seed 20261026. The inputs and all three outputs are kept under `diff/<name>/`.\n\n## Units\n\n| verdict | unit | where | kind | stage | detail |\n|---|---|---|---|---|---|\n"
 text MM "\n## Input files\n\n`input/` is a byte copy of these files; each sha256 below was computed while copying.\n\n| file | language | bytes | sha256 |\n|---|---|---|---|\n"
-text MN "\n## Not walked\n\nDot entries (`.git`, `.cache`, ...), symbolic links, other non-regular files and `*.babel` folders are neither copied nor translated.\n"
+text MN "\n## Not walked\n\nDot entries (`.git`, `.cache`, ...), symbolic links, other non-regular files, `*.babel` folders and unreadable directories are neither copied nor translated. Each one is counted in the completion record below and listed there as SKIPPED.\n"
 
 fn mtool s ulong nm view uchar * to void
 bs MTl
@@ -850,6 +854,7 @@ for f ulong get Nf 0
 mdfile f
 end
 bs MN
+cmdsec
 end
 
 note ---------- omega/manifest.json ----------

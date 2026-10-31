@@ -16,7 +16,7 @@ examples/sample.babel/
   report.json     the same, schema babel.report.v1
 ```
 
-With no `--to` and a terminal on stdin, babel asks for the target language. `--json` prints `report.json` on stdout instead of the summary table.
+With no `--to` and a terminal on stdin, babel asks for the target language. `--json` prints `report.json` on stdout instead of the summary table. `--complete` makes the exit status follow the completion record (see [Completion](#completion)).
 
 **Status: pre-alpha.** Only one narrow profile is implemented, and anything outside it is refused by name. The [ROADMAP](ROADMAP.md) is PROPOSED work, not a feature list.
 
@@ -42,17 +42,44 @@ The omega-mv `<lang>-import` adapters exist for Rust, Python, C++, Zig and Go, o
 | UNSUPPORTED(rc) | An adapter refused the function with a profile exit code. The codes are 64 name, 65 syntax, 66 type, 67 limit, 68 arithmetic, 69 construct, 70 unknown identifier, 71 signature and 72 preprocessor. |
 | MISSING_IMPLEMENTATION | Nothing in the pipeline handles this item: C declarations, preprocessor lines, other languages. The reason names the item. |
 | FAIL | A stage ran and disagreed: an output differed on a vector, a build failed, or the oracle failed. Babel exits 1. |
-| NOT_RUN | A required toolchain is absent, so the check did not happen. It does not count as a pass. |
+| NOT_RUN | A required toolchain is absent, so the check did not happen. It does not count as a pass. A `ZIG=` or `GO=` path that is not executable counts as absent. |
 | ABSORBED | `#include <stdint.h>`: the S1 profile header, which babel supplies to every unit. |
+| SKIPPED | Completion record only: an entry the walk did not enter (hidden entry, symbolic link, other non-regular file, `*.babel` folder, unreadable directory). |
 
 The vectors are the boundary values {0, 1, 2, 2^32−1, 2^32, 2^63−1, 2^63, 2^64−2, 2^64−1}. Functions of arity ≤ 3 get the full cross product; higher arities get 81 rows. Every function also gets 64 splitmix64 vectors from seed 20261026. The original C function is compiled verbatim by `cc` as the oracle. Babel never stores or replays source: every target file is adapter output.
+
+## Completion
+
+Every run computes a completion record, policy `complete-v1`, and writes it to `report.json` (`"completion"`), to a "Completion" section of REPORT.md and to one summary line. Its denominator counts:
+
+- every walked file (a file in a language babel does not recognise, such as `README.txt`, is open as MISSING_IMPLEMENTATION);
+- every split item (TRANSLATED, ABSORBED, UNSUPPORTED, MISSING_IMPLEMENTATION, FAIL, NOT_RUN);
+- every SKIPPED entry, each listed by path;
+- every required check: the three differential legs (original C, Omega, target) of each unit that reached the differential, the generated target test for rust and python, and each toolchain the target needs (`cc` for the oracle plus the target's own).
+
+The state is the first that applies:
+
+| State | Condition |
+|---|---|
+| FAILED | Any FAIL item or check, including a failed generated test. |
+| BLOCKED | No FAIL, but a required check is NOT_RUN or a toolchain is missing. |
+| PARTIAL | No FAIL and no NOT_RUN, but UNSUPPORTED, MISSING_IMPLEMENTATION or SKIPPED items remain. |
+| COMPLETE | Every item TRANSLATED or ABSORBED, nothing skipped, every required check ran and passed. |
+
+```
+"completion": {"policy": "complete-v1", "enforced": false, "state": "PARTIAL", "denominator": 39, "covered": 26,
+  "open": [{"kind": "unit", "item": "src/mix.c:15-17", "name": "zero", "verdict": "UNSUPPORTED(68)", "reason": "..."}, ...]}
+```
+
+`kind` is `file`, `unit`, `skipped`, `check` or `toolchain`; `item` is `path:line[-line]` for units and their legs, a path for files and skipped entries, and a tool name for toolchains. `enforced` is true under `--complete`. `examples/sample` is PARTIAL (26 of 39); `examples/complete` (three S1 functions and the stdint include) is COMPLETE.
 
 `tests/run.sh` checks all of this independently of babel:
 
 - `cmp` on the three outputs;
 - line counts against the vector count;
 - `python3 -m json.tool` on both JSON outputs;
-- a **negative control**: a `cc` wrapper changes `fold`'s original C (`- k` to `+ k`) only when compiling the oracle. Babel must then report FAIL ("differs from the original C on 127 of 145 vectors") and exit 1.
+- a **negative control**: a `cc` wrapper changes `fold`'s original C (`- k` to `+ k`) only when compiling the oracle. Babel must then report FAIL ("differs from the original C on 127 of 145 vectors") and exit 1;
+- the completion gate: `examples/sample --complete` is PARTIAL and exits 3; `examples/complete --complete` is COMPLETE and exits 0 (c and rust); the same input plus one hidden file, or plus one symbolic link, is PARTIAL and exits 3 with that entry as the only open item; the `cc` wrapper under `--complete` is FAILED and exits 1; `ZIG=/nonexistent --to zig --complete` is BLOCKED and exits 4.
 
 ## Why Omega is the middle
 
@@ -82,20 +109,22 @@ BABEL_ADAPTERS=$PWD/omega-mv build/babel examples/sample --to go
 BABEL_ADAPTERS=$PWD/omega-mv tests/run.sh    # ZIG=/GO= if not on PATH
 ```
 
-Babel refuses to run unless the adapters' native omc has sha256 `734f0a39…6b61`. Re-running babel replaces `input/`, `omega/`, `diff/` and the folder for the chosen language. Folders for other languages are kept. Hidden entries, symlinks and `*.babel` folders are not walked, and REPORT.md says so.
+Babel refuses to run unless the adapters' native omc has sha256 `734f0a39…6b61`. Re-running babel replaces `input/`, `omega/`, `diff/` and the folder for the chosen language. Folders for other languages are kept. Hidden entries, symlinks and `*.babel` folders are not walked; each is counted and listed as SKIPPED in the completion record.
 
 Exit codes:
 
-| Code | Meaning |
-|---|---|
-| 0 | No FAIL |
-| 1 | At least one FAIL, or the generated test failed |
-| 2 | Usage or environment error |
-| 64 | No `--to` and no terminal |
+| Code | Without `--complete` | With `--complete` |
+|---|---|---|
+| 0 | No FAIL | COMPLETE |
+| 1 | At least one FAIL, or the generated test failed | FAILED |
+| 2 | Usage or environment error | same |
+| 3 | not used | PARTIAL |
+| 4 | not used | BLOCKED |
+| 64 | No `--to` and no terminal | same |
 
 ## Implementation
 
-Babel itself is written in Omega (`src/*.om`, 5,241 lines). It walks files, hashes them, splits C top-level items, spawns the adapters and toolchains, generates the projects and drivers, compares outputs and writes the reports.
+Babel itself is written in Omega (`src/*.om`, 5,923 lines). It walks files, hashes them, splits C top-level items, spawns the adapters and toolchains, generates the projects and drivers, compares outputs and writes the reports.
 
 The only shell is in `build.sh` and `tests/run.sh`, which coordinate the build and run independent checks. Host programs babel launches are listed in [DEPENDENCIES.md](DEPENDENCIES.md), each with its Omega replacement.
 

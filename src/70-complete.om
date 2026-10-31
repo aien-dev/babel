@@ -1,0 +1,562 @@
+note babel 70-complete: the completion record (policy complete-v1). Its denominator is every walked file,
+note every split item, every entry the walk skipped and every required check (three differential legs per
+note unit that reached the differential, the generated target test where the target has one, and each
+note toolchain the target needs). --complete turns its state into the exit status.
+note State codes in Csv: 1 COMPLETE, 2 PARTIAL, 3 BLOCKED, 4 FAILED (the highest open severity wins).
+global Cpl ulong 1
+global Cmd ulong 1
+global Cden ulong 1
+global Ccov ulong 1
+global Csv ulong 1
+global Cno ulong 1
+global Ccap ulong 1
+note staged strings of one open item: 0 kind, 1 item, 2 name, 3 verdict, 4 reason (pool offset, length)
+global Xo ulong 5
+global Xn ulong 5
+text CpPol "complete-v1"
+text CpS1 "COMPLETE"
+text CpS2 "PARTIAL"
+text CpS3 "BLOCKED"
+text CpS4 "FAILED"
+text CkFile "file"
+text CkSkip "skipped"
+text CkUnit "unit"
+text CkCheck "check"
+text CkTool "toolchain"
+text CvSkip "SKIPPED"
+text CiDot "."
+text CiTst "diff/test.log"
+text CiCap "babel capacity"
+text CrOth "not a source language babel recognises (.c .h .rs .py .go .zig .cpp .cc .cxx .hpp): copied to input/ only, nothing translated"
+text CrEmp "no files were walked: there is nothing to translate"
+text CrSk1 "hidden (dot) entry: not walked, not copied, not translated"
+text CrSk2 "symbolic link: not followed, not copied, not translated"
+text CrSk3 "not a regular file or directory: not copied, not translated"
+text CrSk4 "*.babel output folder: not walked"
+text CrSk5 "directory could not be read: its entries were not walked"
+text CrSk6 "could not be inspected (lstat failed): not walked"
+text CrL0 "differential leg: original C (cc oracle)"
+text CrL1 "differential leg: Omega unit (pinned omc)"
+text CrL2 "differential leg: target "
+text CrLf " failed"
+text CrLn " did not run"
+text CrSep ": "
+text CrTf "generated target test failed (see diff/test.log), exit "
+text CrTn "generated target test did not run (its toolchain is missing)"
+text CrTl " was not found (on PATH, or at the ZIG or GO path given): every check that needs it is NOT_RUN"
+text CrCap "an internal capacity was exceeded (2048 files or skipped entries, 1024 units, 8 MiB pool): items may be missing from this record"
+
+note ---------- the walk over every item ----------
+note mode md: 0 count (Cden, Ccov, Csv), 1 report.json open list, 2 REPORT.md open rows
+fn cwalk md ulong to void
+put Cmd 0 md
+put Cno 0 0
+if eq md 0
+put Cden 0 0
+put Ccov 0 0
+put Csv 0 1
+put Ccap 0 get Cap 0
+end
+if eq get Nf 0 0
+cempty
+end
+for f ulong get Nf 0
+cfile f
+end
+for i ulong get Nsk 0
+cskip i
+end
+for u ulong get Nu 0
+cunit u
+end
+for u ulong get Nu 0
+for k ulong 3
+cleg u k
+end
+end
+ctest
+ctool 0
+s = tslot
+if ne s 0
+ctool s
+end
+if eq get Ccap 0 1
+ccap
+end
+end
+
+note one item with severity sv (0 covered, 2 PARTIAL, 3 BLOCKED, 4 FAILED); true when it is to be printed
+fn cbump sv ulong to bool
+if eq get Cmd 0 0
+put Cden 0 add get Cden 0 1
+if eq sv 0
+put Ccov 0 add get Ccov 0 1
+end
+if gt sv get Csv 0
+put Csv 0 sv
+end
+ret false
+end
+ret ne sv 0
+end
+
+note Ob[m, mark) into staged string k (empty: null in JSON, "-" in Markdown)
+fn xput k ulong m ulong to void
+put Xn k sub mark m
+put Xo k psave m sub mark m
+reset m
+end
+
+fn cempty to void
+if not cbump 2
+ret
+end
+m = mark
+bs CkFile
+xput 0 m
+bs CiDot
+xput 1 m
+xput 2 m
+bs VMi
+xput 3 m
+bs CrEmp
+xput 4 m
+cemit
+end
+
+note a walked file is covered when its language is one babel recognises; its content is counted by its units
+fn cfile f ulong to void
+sv = ulong 0
+if eq get Flg f 0
+sv = ulong 2
+end
+if not cbump sv
+ret
+end
+m = mark
+bs CkFile
+xput 0 m
+bpl get F0 f get Fl f
+xput 1 m
+xput 2 m
+bs VMi
+xput 3 m
+bs CrOth
+xput 4 m
+cemit
+end
+
+fn cskip i ulong to void
+if not cbump 2
+ret
+end
+m = mark
+bs CkSkip
+xput 0 m
+if eq get Skl i 0
+bs CiDot
+else
+bpl get Sk0 i get Skl i
+end
+xput 1 m
+xput 2 m
+bs CvSkip
+xput 3 m
+bskip get Skr i
+xput 4 m
+cemit
+end
+
+fn bskip r ulong to void
+if eq r 1
+bs CrSk1
+ret
+end
+if eq r 2
+bs CrSk2
+ret
+end
+if eq r 3
+bs CrSk3
+ret
+end
+if eq r 4
+bs CrSk4
+ret
+end
+if eq r 5
+bs CrSk5
+ret
+end
+bs CrSk6
+end
+
+note a split item is covered when TRANSLATED or ABSORBED
+fn cunit u ulong to void
+s = get Ust u
+sv = ulong 3
+if eq s 1
+sv = ulong 0
+end
+if eq s 6
+sv = ulong 0
+end
+if eq s 2
+sv = ulong 2
+end
+if eq s 3
+sv = ulong 2
+end
+if eq s 4
+sv = ulong 4
+end
+if not cbump sv
+ret
+end
+m = mark
+bs CkUnit
+xput 0 m
+bloc u
+xput 1 m
+bname u
+xput 2 m
+bverdict u
+xput 3 m
+bpl get Ur0 u get Urn u
+xput 4 m
+cemit
+end
+
+note differential leg k of unit u, required once the unit reached the differential
+fn cleg u ulong k ulong to void
+v = get Ulg add mul u 3 k
+if eq v 0
+ret
+end
+sv = ulong 0
+if eq v 2
+sv = ulong 4
+end
+if eq v 3
+sv = ulong 3
+end
+if not cbump sv
+ret
+end
+m = mark
+bs CkCheck
+xput 0 m
+bloc u
+xput 1 m
+bname u
+xput 2 m
+if eq v 2
+bs VFa
+else
+bs VNr
+end
+xput 3 m
+if eq k 0
+bs CrL0
+end
+if eq k 1
+bs CrL1
+end
+if eq k 2
+bs CrL2
+blang get Lg 0
+end
+if eq v 2
+bs CrLf
+else
+bs CrLn
+end
+if gt get Urn u 0
+bs CrSep
+bpl get Ur0 u get Urn u
+end
+xput 4 m
+cemit
+end
+
+note the generated target test: required for rust and python once any oracle output exists
+fn ctest to void
+g = get Lg 0
+if lt g 2
+ret
+end
+if gt g 3
+ret
+end
+if not anycase
+ret
+end
+t = get Tsr 0
+sv = ulong 0
+if ne t 0
+sv = ulong 4
+if eq t 999
+sv = ulong 3
+end
+end
+if not cbump sv
+ret
+end
+m = mark
+bs CkCheck
+xput 0 m
+bs CiTst
+xput 1 m
+xput 2 m
+if eq sv 4
+bs VFa
+xput 3 m
+bs CrTf
+bu t
+else
+bs VNr
+xput 3 m
+bs CrTn
+end
+xput 4 m
+cemit
+end
+
+note toolchain slot s: required (cc for the oracle, plus the target's own tool)
+fn ctool s ulong to void
+sv = ulong 0
+if eq get Tok s 0
+sv = ulong 3
+end
+if not cbump sv
+ret
+end
+m = mark
+bs CkTool
+xput 0 m
+btool s
+xput 1 m
+xput 2 m
+bs VNr
+xput 3 m
+btool s
+bs CrTl
+xput 4 m
+cemit
+end
+
+fn btool s ulong to void
+if eq s 0
+bs TlNm0
+ret
+end
+if eq s 1
+bs TlNm1
+ret
+end
+if eq s 2
+bs TlNm2
+ret
+end
+if eq s 3
+bs TlNm3
+ret
+end
+if eq s 4
+bs TlNm4
+ret
+end
+bs TlNm5
+end
+
+fn ccap to void
+if not cbump 3
+ret
+end
+m = mark
+bs CkCheck
+xput 0 m
+bs CiCap
+xput 1 m
+xput 2 m
+bs VNr
+xput 3 m
+bs CrCap
+xput 4 m
+cemit
+end
+
+note ---------- output of one open item ----------
+text CjA "\n      {\"kind\": \""
+text CjB "\", \"item\": "
+text CjC ", \"name\": "
+text CjD ", \"verdict\": \""
+text CjE "\", \"reason\": "
+text CjF "}"
+
+fn cemit to void
+if eq get Cmd 0 1
+cemitj
+ret
+end
+cemitm
+end
+
+fn cemitj to void
+if gt get Cno 0 0
+bc 44
+end
+put Cno 0 add get Cno 0 1
+bs CjA
+bpl get Xo 0 get Xn 0
+bs CjB
+bjq get Xo 1 get Xn 1
+bs CjC
+bqnull get Xo 2 get Xn 2
+bs CjD
+bpl get Xo 3 get Xn 3
+bs CjE
+bqnull get Xo 4 get Xn 4
+bs CjF
+end
+
+fn cemitm to void
+bs MTl
+bpl get Xo 0 get Xn 0
+bs MTm
+bc 96
+bmd get Xo 1 get Xn 1
+bc 96
+bs MTm
+if eq get Xn 2 0
+bc 45
+else
+bmd get Xo 2 get Xn 2
+end
+bs MTm
+bpl get Xo 3 get Xn 3
+bs MTm
+bmd get Xo 4 get Xn 4
+bs MTn
+end
+
+note ---------- state, exit status and the three renderings ----------
+fn bstate to void
+s = get Csv 0
+if eq s 1
+bs CpS1
+ret
+end
+if eq s 2
+bs CpS2
+ret
+end
+if eq s 3
+bs CpS3
+ret
+end
+bs CpS4
+end
+
+note --complete: 0 COMPLETE, 1 FAILED, 3 PARTIAL, 4 BLOCKED
+fn cexit to ulong
+s = get Csv 0
+if eq s 1
+ret 0
+end
+if eq s 2
+ret 3
+end
+if eq s 3
+ret 4
+end
+ret 1
+end
+
+text CjH "{\"policy\": \""
+text CjI "\", \"enforced\": "
+text CjT "true"
+text CjFl "false"
+text CjJ ", \"state\": \""
+text CjK "\", \"denominator\": "
+text CjL ", \"covered\": "
+text CjM ", \"open\": ["
+text CjN "\n    ]}"
+text CjO "]}"
+
+fn cjson to void
+bs CjH
+bs CpPol
+bs CjI
+if eq get Cpl 0 1
+bs CjT
+else
+bs CjFl
+end
+bs CjJ
+bstate
+bs CjK
+bu get Cden 0
+bs CjL
+bu get Ccov 0
+bs CjM
+cwalk 1
+if gt get Cno 0 0
+bs CjN
+else
+bs CjO
+end
+end
+
+text CmA "\n## Completion\n\nPolicy `complete-v1`"
+text CmB " (enforced: --complete was given, so the exit status follows this state)"
+text CmC " (not enforced: with --complete the exit status follows this state)"
+text CmD ". State: **"
+text CmE "**, "
+text CmF " of "
+text CmG " items covered.\n\nThe denominator counts every walked file, every split item, every entry the walk skipped (hidden entries, symbolic links, other non-regular files, `*.babel` folders, unreadable directories) and every required check: the three differential legs of each unit that reached the differential, the generated target test where the target has one (rust, python), and each toolchain the target needs. COMPLETE: every item TRANSLATED or ABSORBED, nothing skipped, every check ran and passed. FAILED: any FAIL. BLOCKED: no FAIL, but a required check did not run or a toolchain is missing. PARTIAL: no FAIL and no NOT_RUN, but UNSUPPORTED, MISSING_IMPLEMENTATION or skipped items remain.\n"
+text CmH "\n| kind | item | name | verdict | reason |\n|---|---|---|---|---|\n"
+text CmI "\nNo open items.\n"
+
+fn cmdsec to void
+bs CmA
+if eq get Cpl 0 1
+bs CmB
+else
+bs CmC
+end
+bs CmD
+bstate
+bs CmE
+bu get Ccov 0
+bs CmF
+bu get Cden 0
+bs CmG
+if eq get Ccov 0 get Cden 0
+bs CmI
+ret
+end
+bs CmH
+cwalk 2
+end
+
+text CsA "  completion  "
+text CsB " items covered (policy complete-v1"
+text CsC ", enforced by --complete)\n"
+text CsD "; --complete makes it the exit status)\n"
+
+fn csline to void
+bs CsA
+bstate
+bc 32
+bc 32
+bu get Ccov 0
+bs CmF
+bu get Cden 0
+bs CsB
+if eq get Cpl 0 1
+bs CsC
+else
+bs CsD
+end
+end

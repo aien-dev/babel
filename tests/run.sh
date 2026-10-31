@@ -84,5 +84,91 @@ case "$v" in
 esac
 [ $r -eq 1 ] && ok "negative control: exit 1" || bad "negative control: exit $r, expected 1"
 
+# 5. completion record (policy complete-v1) and --complete exit status.
+#    comp DIR prints "state denominator covered n_open" from DIR/report.json and validates the JSON;
+#    openl DIR prints one "kind|item|name|verdict|reason" line per open item.
+comp() {
+  python3 -m json.tool "$1/report.json" > /dev/null || { echo "JSON-INVALID"; return; }
+  python3 -c 'import json,sys; c=json.load(open(sys.argv[1]))["completion"]; assert c["policy"]=="complete-v1"; print(c["state"],c["denominator"],c["covered"],len(c["open"]))' "$1/report.json"
+}
+openl() {
+  python3 -c 'import json,sys
+for o in json.load(open(sys.argv[1]))["completion"]["open"]: print("|".join(str(o[k]) for k in ("kind","item","name","verdict","reason")))' "$1/report.json"
+}
+# (f) legacy: no --complete, the sample still exits 0; the record is computed but not enforced
+rm -rf "$work/sample.babel"
+(cd "$work" && "$B" sample --to c --adapters "$BABEL_ADAPTERS" > "$work/cf.out" 2>&1); r=$?
+s=$(comp "$work/sample.babel")
+e=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["completion"]["enforced"])' "$work/sample.babel/report.json")
+[ $r -eq 0 ] && [ "${s%% *}" = PARTIAL ] && [ "$e" = False ] && ok "complete (f): sample without --complete exits 0, record $s, enforced $e" \
+  || bad "complete (f): exit $r, record $s, enforced $e"
+# (a) the sample under --complete is PARTIAL (exit 3) and names its open items
+rm -rf "$work/sample.babel"
+(cd "$work" && "$B" sample --to c --adapters "$BABEL_ADAPTERS" --complete > "$work/ca.out" 2>&1); r=$?
+s=$(comp "$work/sample.babel")
+openl "$work/sample.babel" > "$work/ca.open"
+if [ $r -eq 3 ] && [ "${s%% *}" = PARTIAL ] && [ "${s##* }" -gt 0 ] \
+   && grep -q '^unit|src/mix.c:15-17|zero|UNSUPPORTED(68)|' "$work/ca.open" \
+   && grep -q '^unit|tools/report.py:1|None|MISSING_IMPLEMENTATION|' "$work/ca.open" \
+   && grep -q '^file|README.txt|None|MISSING_IMPLEMENTATION|' "$work/ca.open" \
+   && grep -q '^## Completion' "$work/sample.babel/REPORT.md" && grep -q 'State: \*\*PARTIAL\*\*' "$work/sample.babel/REPORT.md"; then
+  ok "complete (a): sample --complete exits 3, record $s (state den covered open), open list names zero, tools/report.py, README.txt"
+else
+  bad "complete (a): exit $r, record $s"; cat "$work/ca.open"
+fi
+# (d) negative control: the mutated oracle under --complete is FAILED (exit 1)
+rm -rf "$work/sample.babel"
+(cd "$work" && PATH="$work/bin:$PATH" "$B" sample --to c --adapters "$BABEL_ADAPTERS" --complete > "$work/cd.out" 2>&1); r=$?
+s=$(comp "$work/sample.babel")
+openl "$work/sample.babel" > "$work/cd.open"
+if [ $r -eq 1 ] && [ "${s%% *}" = FAILED ] && grep -q '^unit|src/hash.c:3-5|fold|FAIL|' "$work/cd.open" \
+   && grep -q '^check|src/hash.c:3-5|fold|FAIL|differential leg: Omega' "$work/cd.open"; then
+  ok "complete (d) negative control: mutated oracle under --complete exits 1, record $s, fold unit and Omega leg FAIL"
+else
+  bad "complete (d): exit $r, record $s"; cat "$work/cd.open"
+fi
+# (b) examples/complete (three S1 functions + the stdint include) is COMPLETE (exit 0)
+cp -r "$here/examples/complete" "$work/complete"
+for t in c rust; do
+  rm -rf "$work/complete.babel"
+  (cd "$work" && "$B" complete --to "$t" --adapters "$BABEL_ADAPTERS" --complete > "$work/cb.out" 2>&1); r=$?
+  s=$(comp "$work/complete.babel")
+  set -- $s
+  if [ $r -eq 0 ] && [ "$1" = COMPLETE ] && [ "$2" -eq "$3" ] && [ "$4" -eq 0 ] && grep -q 'State: \*\*COMPLETE\*\*' "$work/complete.babel/REPORT.md"; then
+    ok "complete (b) $t: examples/complete --complete exits 0, record $s, covered == denominator"
+  else
+    bad "complete (b) $t: exit $r, record $s"; openl "$work/complete.babel"
+  fi
+done
+# (c) negative controls: the same input plus one hidden file, or plus one symbolic link, is PARTIAL (exit 3)
+for kind in hidden symlink; do
+  rm -rf "$work/cc" "$work/cc.babel"
+  cp -r "$here/examples/complete" "$work/cc"
+  if [ $kind = hidden ]; then
+    echo 'uint64_t ghost(uint64_t x) { return x; }' > "$work/cc/src/.ghost.c"; want='^skipped|src/.ghost.c|None|SKIPPED|hidden'
+  else
+    ln -s arith.c "$work/cc/src/alias.c"; want='^skipped|src/alias.c|None|SKIPPED|symbolic link'
+  fi
+  (cd "$work" && "$B" cc --to c --adapters "$BABEL_ADAPTERS" --complete > "$work/ccc.out" 2>&1); r=$?
+  s=$(comp "$work/cc.babel")
+  openl "$work/cc.babel" > "$work/cc.open"
+  if [ $r -eq 3 ] && [ "${s%% *}" = PARTIAL ] && [ "$(wc -l < "$work/cc.open")" -eq 1 ] && grep -q "$want" "$work/cc.open"; then
+    ok "complete (c) negative control ($kind): exits 3, record $s, the only open item: $(cut -d'|' -f2,4 "$work/cc.open")"
+  else
+    bad "complete (c) $kind: exit $r, record $s"; cat "$work/cc.open"
+  fi
+done
+# (e) a missing target toolchain is BLOCKED (exit 4)
+rm -rf "$work/complete.babel"
+(cd "$work" && ZIG=/nonexistent "$B" complete --to zig --adapters "$BABEL_ADAPTERS" --complete > "$work/ce.out" 2>&1); r=$?
+s=$(comp "$work/complete.babel")
+openl "$work/complete.babel" > "$work/ce.open"
+if [ $r -eq 4 ] && [ "${s%% *}" = BLOCKED ] && grep -q '^toolchain|zig|None|NOT_RUN|' "$work/ce.open" \
+   && grep -q '^check|src/arith.c:3-5|blend|NOT_RUN|differential leg: target zig did not run' "$work/ce.open"; then
+  ok "complete (e): ZIG=/nonexistent --to zig --complete exits 4, record $s"
+else
+  bad "complete (e): exit $r, record $s"; cat "$work/ce.open"
+fi
+
 echo "failures: $fails"
 [ $fails -eq 0 ]

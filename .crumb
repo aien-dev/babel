@@ -3,33 +3,33 @@
     "generated": {
       "children": [
         {
-          "digest": "af8fe5d090009428c3a7f7a6207bb8b53d6b2ee9ffd1c2c06e494d04f36fd119",
-          "last_commit": "13ad42d",
+          "digest": "82d819b4d960abb324717c6363e7b2960f1b11d13ebfb86b6ffbc536237931f4",
+          "last_commit": "1337730",
           "name": "examples",
-          "purpose": "sample input mixing S1 and unsupported code"
+          "purpose": "sample input mixing S1 and unsupported code; complete/ is an all-S1 input for the --complete gat"
         },
         {
-          "digest": "a7d728a20559ca35eedad6b7de962b45a98668a39463eb7f6452dc47b4390238",
-          "last_commit": "13ad42d",
+          "digest": "a095ea2c71a414bcb9698d602171be782230f807994f462f378ab29737ce0daa",
+          "last_commit": "1337730",
           "name": "src",
           "purpose": "babel driver in Omega, compiled in file order by build.sh"
         },
         {
-          "digest": "dd282acfe6e92b7f93b9262d0eecf2cb2a354cbb4f5624f48434af0614fa1579",
-          "last_commit": "13ad42d",
+          "digest": "80650e07dead6a4f23119a856a57f56268be9082599b1c49761ce9e8416168b5",
+          "last_commit": "1337730",
           "name": "tests",
           "purpose": "independent checks of babel output, incl. mutated-oracle negative control"
         }
       ],
-      "children_root": "sha256:dc6ffb084a85883f9499e594ea5a6bce59505a0433e4a02b0efaa75e2f111e2d",
-      "compiled_at": "2026-10-28T21:30:12Z",
+      "children_root": "sha256:7cb15e58e4e998efabd4eff0fb929df29b160efa5794032cf27c2e498a4dbb4c",
+      "compiled_at": "2026-10-31T00:30:03Z",
       "compiler": "crumb-compile/1",
-      "digest": "sha256:894cb1341d1429c8a6c11cdf8348ce4761ad9b04ce1ffc2b17607e504485f942",
+      "digest": "sha256:b119c5e0a53a33e69a6fde43f29bd95f238e24b47ac21d2963659c99391103ae",
       "evidence_files": 0,
       "evidence_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "files": 30,
-      "generated_at_commit": "13ad42d9c3383774f34caf9087bf5f7d9d3d675c",
-      "source_tree": "sha256:686ed332e9343a3c30ae0c81940788aa5650355e772e5822687daa5a1f4c7b64"
+      "files": 32,
+      "generated_at_commit": "133773074a9f418fdc6d8768b5cfcc6815d32fd0",
+      "source_tree": "sha256:cbbeda42e524acff91c2b1ea550f55e79e588cb3013035afd7504f083865c641"
     }
   },
   "name": "babel",
