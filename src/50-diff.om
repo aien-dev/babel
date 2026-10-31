@@ -9,6 +9,9 @@ global Brc ulong 1
 global Trc ulong 1
 global Tsr ulong 1
 global Ubd ulong 1024
+note leg results of unit u at Ulg[3u + k], k 0 original C, 1 Omega, 2 target:
+note 0 not required (the unit never reached the differential), 1 PASS, 2 FAIL, 3 NOT_RUN
+global Ulg ulong 3072
 text TnCc "cc"
 text TnCargo "cargo"
 text TnPy "python3"
@@ -187,16 +190,12 @@ if eq get Tok 3 0
 tfind 3 TnCpp2
 end
 if getenv EvZig
-put Tok 4 1
-put Tl0 4 get Gv0 0
-put Tln 4 get Gvn 0
+tenv 4
 else
 tfind 4 TnZig
 end
 if getenv EvGo
-put Tok 5 1
-put Tl0 5 get Gv0 0
-put Tln 5 get Gvn 0
+tenv 5
 else
 tfind 5 TnGo
 end
@@ -205,6 +204,20 @@ if eq get Tok s 1
 tver s
 end
 end
+end
+
+note tool slot s from an environment override (Gv0/Gvn): found only when the path is executable
+fn tenv s ulong to void
+m = mark
+bpl get Gv0 0 get Gvn 0
+r = faccess Ob m sub mark m 1
+reset m
+if ne r 0
+ret
+end
+put Tok s 1
+put Tl0 s get Gv0 0
+put Tln s get Gvn 0
 end
 
 note first line of "<tool> --version" (zig/go: "version") into Tv0/Tvn
@@ -729,6 +742,10 @@ bu rc
 ureasob u m
 end
 
+fn legset u ulong k ulong v ulong to void
+put Ulg add mul u 3 k v
+end
+
 note one exported unit through all three legs
 fn diffunit u ulong to void
 progress u
@@ -739,12 +756,15 @@ ret
 end
 r = leg1 u
 if ne r 0
+legset u 0 2
 setst u 4 8 r
 whyrcn u RsOrc RsOrc2 r
 ret
 end
+legset u 0 1
 r = leg2 u
 if ne r 0
+legset u 1 2
 setst u 4 7 r
 whyrcn u RsOmd RsOmd2 r
 ret
@@ -752,10 +772,12 @@ end
 k = mism u POut2
 put Umo u k
 if gt k 0
+legset u 1 2
 setst u 4 7 0
 whymis u RsMo k
 ret
 end
+legset u 1 1
 legt u
 end
 
@@ -767,12 +789,14 @@ ret
 end
 b = get Brc 0
 if ne b 0
+legset u 2 2
 setst u 4 6 b
 whyrc u RsTbd b
 ret
 end
 b = get Ubd u
 if ne b 0
+legset u 2 2
 setst u 4 6 b
 whyrcn u RsTbdU RsTbdU2 b
 ret
@@ -782,6 +806,7 @@ kenv
 ktarget u
 r = runvec u POut3
 if ne r 0
+legset u 2 2
 setst u 4 7 r
 whyrcn u RsTrn RsTrn2 r
 ret
@@ -789,10 +814,12 @@ end
 k = mism u POut3
 put Umt u k
 if gt k 0
+legset u 2 2
 setst u 4 7 0
 whymis u RsMt k
 ret
 end
+legset u 2 1
 setst u 1 7 0
 end
 
@@ -845,6 +872,9 @@ for u ulong get Nu 0
 if not exported u
 continue
 end
+legset u 0 3
+legset u 1 3
+legset u 2 3
 if eq get Tok 0 0
 setst u 5 8 0
 ureason u RsNoCc

@@ -37,6 +37,10 @@ global Umo ulong 1024
 global Umt ulong 1024
 global Uno ulong 1024
 global Nu ulong 1
+global Sk0 ulong 2048
+global Skl ulong 2048
+global Skr ulong 2048
+global Nsk ulong 1
 note scanner state
 global Sx ulong 1
 global Sln ulong 1
@@ -112,7 +116,8 @@ put Nf 0 add n 1
 end
 
 note walk directory Ob[p0, p1) whose path relative to the input root is Ob[r0, r1)
-note dot entries and *.babel output folders are skipped; depth is limited to 24
+note dot entries, symbolic links, other non-regular files and *.babel output folders are not walked;
+note each one is recorded in the skip table (skipadd) so the completion record counts it; depth <= 24
 fn walk p0 ulong p1 ulong r0 ulong r1 ulong depth ulong to void
 if gt depth 24
 put Cap 0 1
@@ -122,6 +127,7 @@ m = mark
 e = dirrecs p0 p1
 if eq e 0
 reset m
+skipadd r0 r1 5
 ret
 end
 o = m
@@ -132,14 +138,10 @@ reset m
 end
 
 fn walkent o ulong p0 ulong p1 ulong r0 ulong r1 ulong depth ulong to ulong
-ty = get Ob o
 n = add o 1
 k = n
 while ne get Ob k 0 bound 4096
 k = add k 1
-end
-if eq get Ob n 46
-ret add k 1
 end
 c0 = mark
 bob p0 sub p1 p0
@@ -152,17 +154,82 @@ bc 47
 end
 bob n sub k n
 c2 = mark
+if eq get Ob n 46
+skipadd c1 c2 1
+else
+walkone c0 c1 c2 depth
+end
+reset c0
+ret add k 1
+end
+
+note one non-dot entry: full path Ob[c0, c1), relative path Ob[c1, c2)
+fn walkone c0 ulong c1 ulong c2 ulong depth ulong to void
 t = ftype c0 c1
 if eq t 2
-if not obteq sub c2 len ExBab len ExBab ExBab
+if obteq sub c2 len ExBab len ExBab ExBab
+skipadd c1 c2 4
+else
 walk c0 c1 c1 c2 add depth 1
 end
 end
 if eq t 1
 addfile c1 c2
 end
-reset c0
-ret add k 1
+if eq t 3
+if eq and get Sb 17 240 160
+skipadd c1 c2 2
+else
+skipadd c1 c2 3
+end
+end
+if eq t 0
+skipadd c1 c2 6
+end
+end
+
+note skip table: relative path Sk0/Skl (pool), reason Skr: 1 dot entry, 2 symbolic link,
+note 3 other non-regular file, 4 *.babel folder, 5 unreadable directory, 6 lstat failed
+fn skipadd r0 ulong r1 ulong why ulong to void
+n = get Nsk 0
+if ge n 2048
+put Cap 0 1
+ret
+end
+put Sk0 n psave r0 sub r1 r0
+put Skl n sub r1 r0
+put Skr n why
+put Nsk 0 add n 1
+end
+
+note skip table in path order, like the file table
+fn sksort to void
+n = get Nsk 0
+i = ulong 1
+while lt i n bound 4096
+j = i
+while gt j 0 bound 4096
+a = sub j 1
+if not pllt get Sk0 j get Skl j get Sk0 a get Skl a
+break
+end
+skswap j a
+j = a
+end
+i = add i 1
+end
+end
+
+fn skswap i ulong j ulong to void
+t = get Sk0 i
+put Sk0 i get Sk0 j
+put Sk0 j t
+t = get Skl i
+put Skl i get Skl j
+put Skl j t
+t = get Skr i
+put Skr i get Skr j
+put Skr j t
 end
 
 note lexicographic order of files by relative path (insertion sort over the table)

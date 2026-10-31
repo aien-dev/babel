@@ -3,17 +3,17 @@
     "generated": {
       "children": [],
       "children_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "compiled_at": "2026-10-26T20:47:25Z",
+      "compiled_at": "2026-10-31T00:30:03Z",
       "compiler": "crumb-compile/1",
-      "digest": "sha256:af8fe5d090009428c3a7f7a6207bb8b53d6b2ee9ffd1c2c06e494d04f36fd119",
+      "digest": "sha256:82d819b4d960abb324717c6363e7b2960f1b11d13ebfb86b6ffbc536237931f4",
       "evidence_files": 0,
       "evidence_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "files": 4,
-      "generated_at_commit": "3d13ecfc624f47e081807c891bc650bf537ddbbe",
-      "source_tree": "sha256:dd0f59c5a685c75ae7d329a761aee675d5228fb48ae0fbc578d6c245c4d4fca9"
+      "files": 5,
+      "generated_at_commit": "133773074a9f418fdc6d8768b5cfcc6815d32fd0",
+      "source_tree": "sha256:e2405a98bccc1e4d12a2001f89daf57aee9178d3e9a9dee669fdea9e4e4785b6"
     }
   },
   "name": "babel-examples",
-  "purpose": "sample input mixing S1 and unsupported code",
+  "purpose": "sample input mixing S1 and unsupported code; complete/ is an all-S1 input for the --complete gate",
   "schema_version": "1.0.0"
 }

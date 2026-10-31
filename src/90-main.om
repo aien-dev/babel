@@ -5,14 +5,17 @@ global Psn ulong 1
 global Rd0 ulong 1
 global Rdn ulong 1
 global Ln uchar 64
-text Usage "usage: babel <path> [--to rust|c|python|cpp|zig|go] [--json] [--no-color] [--adapters DIR]\n\nTranslate the C functions under <path> through Omega into the target language. The result goes\nnext to <path>, in <path>.babel/: input/ (a hashed copy), omega/ (the Omega units), <target>/\n(the generated project), diff/ (the differential test) and REPORT.md + report.json.\n\nOnly profile S1 is implemented (pure functions of 0-6 uint64_t inputs using + - * modulo 2^64).\nEverything else is reported, with the reason and location, and is never approximated.\n\n  --to LANG        target: rust, c, python, cpp, zig or go (asked interactively when omitted on a terminal)\n  --json           print report.json on stdout instead of the summary table\n  --no-color       no ANSI colour (also when NO_COLOR is set or stdout is not a terminal)\n  --adapters DIR   omega-mv checkout with built adapters (default: $BABEL_ADAPTERS)\n  --version        print the version and pins\n\nexit status: 0 no FAIL, 1 at least one FAIL, 2 usage or environment error, 64 no target and no terminal\n"
+text Usage "usage: babel <path> [--to rust|c|python|cpp|zig|go] [--json] [--no-color] [--complete] [--exclude FILE] [--adapters DIR]\n\nTranslate the C functions under <path> through Omega into the target language. The result goes\nnext to <path>, in <path>.babel/: input/ (a hashed copy), omega/ (the Omega units), <target>/\n(the generated project), diff/ (the differential test) and REPORT.md + report.json.\n\nOnly profile S1 is implemented (pure functions of 0-6 uint64_t inputs using + - * modulo 2^64).\nEverything else is reported, with the reason and location, and is never approximated.\n\n  --to LANG        target: rust, c, python, cpp, zig or go (asked interactively when omitted on a terminal)\n  --json           print report.json on stdout instead of the summary table\n  --no-color       no ANSI colour (also when NO_COLOR is set or stdout is not a terminal)\n  --complete       strict completion policy complete-v1: exit 0 only when every walked file, split item,\n                   skipped entry and required check is covered or excluded (state COMPLETE)\n  --exclude FILE   exclusion manifest: one \"<path> <reason>\" per line, path relative to <path>, an exact\n                   path or a dir/ prefix (no globs); blank and # lines ignored. An excluded entry stays in\n                   the denominator as EXCLUDED. Source files and their split items cannot be excluded.\n                   A line without a reason, an entry that matches nothing or one that names source exits 2.\n  --adapters DIR   omega-mv checkout with built adapters (default: $BABEL_ADAPTERS)\n  --version        print the version and pins\n\nexit status: 0 no FAIL, 1 at least one FAIL, 2 usage, environment or exclusion-manifest error,\n64 no target and no terminal\nwith --complete: 0 COMPLETE, 1 FAILED, 3 PARTIAL, 4 BLOCKED (2 and 64 as above)\n"
 text VerL "babel 0.1.0\nbuilt with omega-mv seed/out/omc OM-2 (main 0b77e6ea2, sha256 2c82480596bbdc50cda9626866209ef662d5834f278f839ff4ce0250c495029f)\nadapters: aien-dev/omega-mv universal/624-g1-integration 2d4c6407, profile S1 c17-uint64-pure-v1\nadapter omc sha256 734f0a39319fbfa930bcc62cb30dbf06d47d78e126372b74f5baf478e6126b61\n"
 text OTo "--to"
 text OToE "--to="
 text OJson "--json"
 text ONoc "--no-color"
+text OCpl "--complete"
 text OAd "--adapters"
 text OAdE "--adapters="
+text OExc "--exclude"
+text OExcE "--exclude="
 text OHelp "--help"
 text OShort "-h"
 text OVer "--version"
@@ -26,6 +29,7 @@ text EBadL "babel: unknown target language: "
 text ETwo "babel: more than one <path> given\n"
 text ENoP "babel: no <path> given (see babel --help)\n"
 text ENoA "babel: no adapters: pass --adapters DIR or set BABEL_ADAPTERS to an omega-mv checkout whose adapters were built (tools/adapters/build-g3.py, see README)\n"
+text ENoEx "babel: --exclude needs a manifest FILE\n"
 text ENoIn "babel: input not found or not a regular file or directory: "
 text EPin1 "babel: the adapters' native omc at "
 text EPin2 " does not have the pinned sha256 734f0a39...6b61 (rebuild the adapters at the pinned revision; see README)\n"
@@ -175,11 +179,18 @@ if argeq i ONoc
 put Nocol 0 1
 ret 0
 end
+if argeq i OCpl
+put Cpl 0 1
+ret 0
+end
 if argeq i OTo
 ret argto add i 1
 end
 if argeq i OAd
 ret argad add i 1
+end
+if argeq i OExc
+ret argex add i 1
 end
 ok = argpl i
 if not ok
@@ -200,6 +211,11 @@ end
 if plpre o n OAdE
 put Ad0 0 add o len OAdE
 put Adn 0 sub n len OAdE
+ret 0
+end
+if plpre o n OExcE
+put Ex0 0 add o len OExcE
+put Exn 0 sub n len OExcE
 ret 0
 end
 if gt n 0
@@ -243,6 +259,17 @@ end
 ok = argpl i
 put Ad0 0 get Ps0 0
 put Adn 0 get Psn 0
+ret 1000
+end
+
+fn argex i ulong to ulong
+if ge i ulong argcnt
+eputs ENoEx
+ret 3
+end
+ok = argpl i
+put Ex0 0 get Ps0 0
+put Exn 0 get Psn 0
 ret 1000
 end
 
@@ -323,12 +350,25 @@ end
 
 note absolute input path (cwd joined, "./" and trailing "/" removed) back into Rt0/Rtn
 fn absin to void
-o = get Rt0 0
-n = get Rtn 0
 m = mark
+absob get Rt0 0 get Rtn 0
+while gt sub mark m 1 bound 4096
+if ne get Ob sub mark 1 47
+break
+end
+put Ol 0 sub mark 1
+end
+put Rt0 0 psave m sub mark m
+put Rtn 0 sub mark m
+reset m
+end
+
+note append the absolute form of the path Pl[o, o+n) to Ob: cwd joined, leading "./" removed
+fn absob o ulong n ulong to void
 if eq get Pl o 47
 bpl o n
-else
+ret
+end
 r = cwd Ag 0 len Ag
 if gt r 1
 for j ulong sub ulong r 1
@@ -349,16 +389,6 @@ if lt k n
 bc 47
 bpl add o k sub n k
 end
-end
-while gt sub mark m 1 bound 4096
-if ne get Ob sub mark 1 47
-break
-end
-put Ol 0 sub mark 1
-end
-put Rt0 0 psave m sub mark m
-put Rtn 0 sub mark m
-reset m
 end
 
 note package name from the input's last path component: [a-z0-9_], not starting with a digit
@@ -800,10 +830,14 @@ bc 10
 flush 2 m
 ret 2
 end
+fsort
+sksort
+if not exload get Rd0 0 get Rdn 0
+ret 2
+end
 if not outdirs
 ret 2
 end
-fsort
 adhead
 tools
 ingest
@@ -811,6 +845,7 @@ pipeline
 gentarget
 difftest
 progend
+cwalk 0
 reports
 if eq get Cap 0 1
 eputs ECap
@@ -819,6 +854,9 @@ if eq get Jsn 0 1
 jsonout
 else
 summary
+end
+if eq get Cpl 0 1
+ret cexit
 end
 if anyfail
 ret 1
