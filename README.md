@@ -16,7 +16,7 @@ examples/sample.babel/
   report.json     the same, schema babel.report.v1
 ```
 
-With no `--to` and a terminal on stdin, babel asks for the target language. `--json` prints `report.json` on stdout instead of the summary table. `--complete` makes the exit status follow the completion record (see [Completion](#completion)).
+With no `--to` and a terminal on stdin, babel asks for the target language. `--json` prints `report.json` on stdout instead of the summary table. `--complete` makes the exit status follow the completion record (see [Completion](#completion)). `--exclude FILE` names a manifest of non-source entries that are excluded from completion with a reason (see [Exclusion manifest](#exclusion-manifest)).
 
 **Status: pre-alpha.** Only one narrow profile is implemented, and anything outside it is refused by name. The [ROADMAP](ROADMAP.md) is PROPOSED work, not a feature list.
 
@@ -45,6 +45,7 @@ The omega-mv `<lang>-import` adapters exist for Rust, Python, C++, Zig and Go, o
 | NOT_RUN | A required toolchain is absent, so the check did not happen. It does not count as a pass. A `ZIG=` or `GO=` path that is not executable counts as absent. |
 | ABSORBED | `#include <stdint.h>`: the S1 profile header, which babel supplies to every unit. |
 | SKIPPED | Completion record only: an entry the walk did not enter (hidden entry, symbolic link, other non-regular file, `*.babel` folder, unreadable directory). |
+| EXCLUDED | Completion record only: a non-source file or skipped entry named by the `--exclude` manifest, with the manifest's reason. |
 
 The vectors are the boundary values {0, 1, 2, 2^32−1, 2^32, 2^63−1, 2^63, 2^64−2, 2^64−1}. Functions of arity ≤ 3 get the full cross product; higher arities get 81 rows. Every function also gets 64 splitmix64 vectors from seed 20261026. The original C function is compiled verbatim by `cc` as the oracle. Babel never stores or replays source: every target file is adapter output.
 
@@ -64,14 +65,39 @@ The state is the first that applies:
 | FAILED | Any FAIL item or check, including a failed generated test. |
 | BLOCKED | No FAIL, but a required check is NOT_RUN or a toolchain is missing. |
 | PARTIAL | No FAIL and no NOT_RUN, but UNSUPPORTED, MISSING_IMPLEMENTATION or SKIPPED items remain. |
-| COMPLETE | Every item TRANSLATED or ABSORBED, nothing skipped, every required check ran and passed. |
+| COMPLETE | Every item TRANSLATED, ABSORBED or EXCLUDED (covered + excluded == denominator), nothing open, every required check ran and passed. |
 
 ```
 "completion": {"policy": "complete-v1", "enforced": false, "state": "PARTIAL", "denominator": 39, "covered": 26,
   "open": [{"kind": "unit", "item": "src/mix.c:15-17", "name": "zero", "verdict": "UNSUPPORTED(68)", "reason": "..."}, ...]}
 ```
 
-`kind` is `file`, `unit`, `skipped`, `check` or `toolchain`; `item` is `path:line[-line]` for units and their legs, a path for files and skipped entries, and a tool name for toolchains. `enforced` is true under `--complete`. `examples/sample` is PARTIAL (26 of 39); `examples/complete` (three S1 functions and the stdint include) is COMPLETE.
+`kind` is `file`, `unit`, `skipped`, `check` or `toolchain`; `item` is `path:line[-line]` for units and their legs, a path for files and skipped entries, and a tool name for toolchains. `enforced` is true under `--complete`. `examples/sample` is PARTIAL (26 of 39); `examples/complete` (three S1 functions and the stdint include) is COMPLETE. `excluded_count`, `excluded` and `manifest` are always present: without `--exclude` they are `0`, `[]` and `null`.
+
+### Exclusion manifest
+
+`--exclude FILE` reads a manifest of entries that are not source and need no translation, such as documentation or VCS metadata:
+
+```
+# <path> <reason...>; blank lines and # lines are ignored
+README.txt        notes for people, no code
+.gitignore        VCS metadata
+docs/             prose only
+```
+
+Each entry is a path relative to the walked root: an exact path, or a directory prefix (`docs/` covers everything below `docs`). Globs are refused. A matched item stays in the denominator with verdict EXCLUDED and is listed under `"excluded"` with its `reason`, `matched_by` (the entry) and manifest `line`; it is not counted as covered. The summary line shows `C of D items covered, X excluded by manifest <sha8>`, and REPORT.md lists the excluded items with the manifest path and full sha256:
+
+```
+"excluded_count": 1, "excluded": [{"kind": "file", "item": "README.txt", "verdict": "EXCLUDED", "reason": "notes for people, no code", "matched_by": "README.txt", "line": 2}],
+"manifest": {"path": "babel.exclude", "sha256": "...", "walked_as": "babel.exclude"}
+```
+
+A manifest inside the walked tree is itself counted as covered (`walked_as` is its walked path; `null` when it lies outside). Babel exits 2, before it writes any output folder, with one `babel: --exclude FILE line N: ...` diagnostic per bad line, when an entry
+
+- has no reason;
+- is a glob;
+- matches nothing in the walked tree (a stale manifest);
+- names an entry babel splits as source, including a hidden or symbolically linked `.c` file: source cannot be excluded, only translated or left open.
 
 `tests/run.sh` checks all of this independently of babel:
 
@@ -79,7 +105,9 @@ The state is the first that applies:
 - line counts against the vector count;
 - `python3 -m json.tool` on both JSON outputs;
 - a **negative control**: a `cc` wrapper changes `fold`'s original C (`- k` to `+ k`) only when compiling the oracle. Babel must then report FAIL ("differs from the original C on 127 of 145 vectors") and exit 1;
-- the completion gate: `examples/sample --complete` is PARTIAL and exits 3; `examples/complete --complete` is COMPLETE and exits 0 (c and rust); the same input plus one hidden file, or plus one symbolic link, is PARTIAL and exits 3 with that entry as the only open item; the `cc` wrapper under `--complete` is FAILED and exits 1; `ZIG=/nonexistent --to zig --complete` is BLOCKED and exits 4.
+- the completion gate: `examples/sample --complete` is PARTIAL and exits 3; `examples/complete --complete` is COMPLETE and exits 0 (c and rust); the same input plus one hidden file, or plus one symbolic link, is PARTIAL and exits 3 with that entry as the only open item; the `cc` wrapper under `--complete` is FAILED and exits 1; `ZIG=/nonexistent --to zig --complete` is BLOCKED and exits 4;
+- the remaining completion gaps: a FIFO, or a mode-000 directory, is the only open item (PARTIAL, exit 3); a `PATH` without `cc` is BLOCKED (exit 4); a `cargo` that fails only `cargo test` is FAILED (exit 1) with the generated test as the only open item;
+- the exclusion manifest: `examples/complete` plus `README.txt` is PARTIAL (exit 3) and COMPLETE (exit 0) with `README.txt` excluded, same denominator; an in-tree manifest plus an excluded `.gitignore` is COMPLETE; manifests naming `src/arith.c`, `src/`, a hidden `.c`, a symlinked `.c`, a stale path, a glob, or an entry without a reason each exit 2 without an output folder.
 
 ## Why Omega is the middle
 
@@ -117,14 +145,14 @@ Exit codes:
 |---|---|---|
 | 0 | No FAIL | COMPLETE |
 | 1 | At least one FAIL, or the generated test failed | FAILED |
-| 2 | Usage or environment error | same |
+| 2 | Usage or environment error, or a rejected `--exclude` manifest | same |
 | 3 | not used | PARTIAL |
 | 4 | not used | BLOCKED |
 | 64 | No `--to` and no terminal | same |
 
 ## Implementation
 
-Babel itself is written in Omega (`src/*.om`, 5,923 lines). It walks files, hashes them, splits C top-level items, spawns the adapters and toolchains, generates the projects and drivers, compares outputs and writes the reports.
+Babel itself is written in Omega (`src/*.om`, 6,469 lines). It walks files, hashes them, splits C top-level items, spawns the adapters and toolchains, generates the projects and drivers, compares outputs and writes the reports.
 
 The only shell is in `build.sh` and `tests/run.sh`, which coordinate the build and run independent checks. Host programs babel launches are listed in [DEPENDENCIES.md](DEPENDENCIES.md), each with its Omega replacement.
 

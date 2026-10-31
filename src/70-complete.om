@@ -13,6 +13,9 @@ global Ccap ulong 1
 note staged strings of one open item: 0 kind, 1 item, 2 name, 3 verdict, 4 reason (pool offset, length)
 global Xo ulong 5
 global Xn ulong 5
+global Cexc ulong 1
+global Xe ulong 1
+text CvExc "EXCLUDED"
 text CpPol "complete-v1"
 text CpS1 "COMPLETE"
 text CpS2 "PARTIAL"
@@ -47,13 +50,15 @@ text CrTl " was not found (on PATH, or at the ZIG or GO path given): every check
 text CrCap "an internal capacity was exceeded (2048 files or skipped entries, 1024 units, 8 MiB pool): items may be missing from this record"
 
 note ---------- the walk over every item ----------
-note mode md: 0 count (Cden, Ccov, Csv), 1 report.json open list, 2 REPORT.md open rows
+note mode md: 0 count (Cden, Ccov, Cexc, Csv), 1 report.json open list, 2 REPORT.md open rows,
+note 3 report.json excluded list, 4 REPORT.md excluded rows
 fn cwalk md ulong to void
 put Cmd 0 md
 put Cno 0 0
 if eq md 0
 put Cden 0 0
 put Ccov 0 0
+put Cexc 0 0
 put Csv 0 1
 put Ccap 0 get Cap 0
 end
@@ -85,19 +90,41 @@ ccap
 end
 end
 
-note one item with severity sv (0 covered, 2 PARTIAL, 3 BLOCKED, 4 FAILED); true when it is to be printed
+note one item with severity sv (0 covered, 1 EXCLUDED, 2 PARTIAL, 3 BLOCKED, 4 FAILED); true when it is to be printed
 fn cbump sv ulong to bool
-if eq get Cmd 0 0
+md = get Cmd 0
+if eq md 0
 put Cden 0 add get Cden 0 1
 if eq sv 0
 put Ccov 0 add get Ccov 0 1
+end
+if eq sv 1
+put Cexc 0 add get Cexc 0 1
 end
 if gt sv get Csv 0
 put Csv 0 sv
 end
 ret false
 end
-ret ne sv 0
+if gt md 2
+ret eq sv 1
+end
+ret gt sv 1
+end
+
+note an EXCLUDED item: kind, item Pl[o, o+n) ("." when empty), manifest entry e1 - 1
+fn cexcl kd view uchar * o ulong n ulong e1 ulong to void
+m = mark
+bs kd
+xput 0 m
+if eq n 0
+bs CiDot
+else
+bpl o n
+end
+xput 1 m
+put Xe 0 sub e1 1
+cemit
 end
 
 note Ob[m, mark) into staged string k (empty: null in JSON, "-" in Markdown)
@@ -124,13 +151,24 @@ xput 4 m
 cemit
 end
 
-note a walked file is covered when its language is one babel recognises; its content is counted by its units
+note a walked file is covered when its language is one babel recognises (its content is counted by its
+note units) or when it is the --exclude manifest; EXCLUDED when a manifest entry matched it
 fn cfile f ulong to void
 sv = ulong 0
 if eq get Flg f 0
 sv = ulong 2
+if eq get Mfi 0 add f 1
+sv = ulong 0
+end
+if ne get Fex f 0
+sv = ulong 1
+end
 end
 if not cbump sv
+ret
+end
+if eq sv 1
+cexcl CkFile get F0 f get Fl f get Fex f
 ret
 end
 m = mark
@@ -147,7 +185,18 @@ cemit
 end
 
 fn cskip i ulong to void
-if not cbump 2
+sv = ulong 2
+if eq get Msk 0 add i 1
+sv = ulong 0
+end
+if ne get Skx i 0
+sv = ulong 1
+end
+if not cbump sv
+ret
+end
+if eq sv 1
+cexcl CkSkip get Sk0 i get Skl i get Skx i
 ret
 end
 m = mark
@@ -395,11 +444,69 @@ text CjE "\", \"reason\": "
 text CjF "}"
 
 fn cemit to void
-if eq get Cmd 0 1
+md = get Cmd 0
+if eq md 1
 cemitj
 ret
 end
+if eq md 3
+cemitx
+ret
+end
+if eq md 4
+cemitxm
+ret
+end
 cemitm
+end
+
+text CxV ", \"verdict\": \"EXCLUDED\", \"reason\": "
+text CxM ", \"matched_by\": "
+text CxL ", \"line\": "
+
+note report.json excluded item: kind, item, verdict, the manifest's reason, entry and line
+fn cemitx to void
+if gt get Cno 0 0
+bc 44
+end
+put Cno 0 add get Cno 0 1
+e = get Xe 0
+bs CjA
+bpl get Xo 0 get Xn 0
+bs CjB
+bjq get Xo 1 get Xn 1
+bs CxV
+bjq get Mr0 e get Mrn e
+bs CxM
+bjq get Me0 e get Men e
+bs CxL
+bu get Mln e
+bs CjF
+end
+
+text CxLn " (line "
+
+note REPORT.md excluded row: | kind | item | EXCLUDED | entry (line N) | reason |
+fn cemitxm to void
+e = get Xe 0
+bs MTl
+bpl get Xo 0 get Xn 0
+bs MTm
+bc 96
+bmd get Xo 1 get Xn 1
+bc 96
+bs MTm
+bs CvExc
+bs MTm
+bc 96
+bmd get Me0 e get Men e
+bc 96
+bs CxLn
+bu get Mln e
+bc 41
+bs MTm
+bmd get Mr0 e get Mrn e
+bs MTn
 end
 
 fn cemitj to void
@@ -481,8 +588,11 @@ text CjJ ", \"state\": \""
 text CjK "\", \"denominator\": "
 text CjL ", \"covered\": "
 text CjM ", \"open\": ["
-text CjN "\n    ]}"
-text CjO "]}"
+text CjN "\n    ]"
+text CjO "]"
+text CjP ", \"excluded_count\": "
+text CjQ ", \"excluded\": ["
+text CjR ", \"manifest\": "
 
 fn cjson to void
 bs CjH
@@ -506,6 +616,18 @@ bs CjN
 else
 bs CjO
 end
+bs CjP
+bu get Cexc 0
+bs CjQ
+cwalk 3
+if gt get Cno 0 0
+bs CjN
+else
+bs CjO
+end
+bs CjR
+exjson
+bc 125
 end
 
 text CmA "\n## Completion\n\nPolicy `complete-v1`"
@@ -514,7 +636,13 @@ text CmC " (not enforced: with --complete the exit status follows this state)"
 text CmD ". State: **"
 text CmE "**, "
 text CmF " of "
-text CmG " items covered.\n\nThe denominator counts every walked file, every split item, every entry the walk skipped (hidden entries, symbolic links, other non-regular files, `*.babel` folders, unreadable directories) and every required check: the three differential legs of each unit that reached the differential, the generated target test where the target has one (rust, python), and each toolchain the target needs. COMPLETE: every item TRANSLATED or ABSORBED, nothing skipped, every check ran and passed. FAILED: any FAIL. BLOCKED: no FAIL, but a required check did not run or a toolchain is missing. PARTIAL: no FAIL and no NOT_RUN, but UNSUPPORTED, MISSING_IMPLEMENTATION or skipped items remain.\n"
+text CmG " items covered"
+text CmE2 ", "
+text CmGx " excluded by manifest `"
+text CmGs "` (sha256 "
+text CmGe ")"
+text CmG2 ".\n\nThe denominator counts every walked file, every split item, every entry the walk skipped (hidden entries, symbolic links, other non-regular files, `*.babel` folders, unreadable directories) and every required check: the three differential legs of each unit that reached the differential, the generated target test where the target has one (rust, python), and each toolchain the target needs. An entry matched by the --exclude manifest stays in the denominator as EXCLUDED with the manifest's reason; source files and their split items cannot be excluded. COMPLETE: every item TRANSLATED, ABSORBED or EXCLUDED, nothing else skipped, every check ran and passed. FAILED: any FAIL. BLOCKED: no FAIL, but a required check did not run or a toolchain is missing. PARTIAL: no FAIL and no NOT_RUN, but UNSUPPORTED, MISSING_IMPLEMENTATION or skipped items remain.\n"
+text CmX "\nExcluded by the manifest:\n\n| kind | item | verdict | manifest entry | reason |\n|---|---|---|---|---|\n"
 text CmH "\n| kind | item | name | verdict | reason |\n|---|---|---|---|---|\n"
 text CmI "\nNo open items.\n"
 
@@ -532,18 +660,35 @@ bu get Ccov 0
 bs CmF
 bu get Cden 0
 bs CmG
-if eq get Ccov 0 get Cden 0
-bs CmI
-ret
+if gt get Exn 0 0
+bs CmE2
+bu get Cexc 0
+bs CmGx
+bmd get Ex0 0 get Exn 0
+bs CmGs
+exhex 32
+bs CmGe
 end
+bs CmG2
+if eq add get Ccov 0 get Cexc 0 get Cden 0
+bs CmI
+else
 bs CmH
 cwalk 2
+end
+if gt get Cexc 0 0
+bs CmX
+cwalk 4
+end
 end
 
 text CsA "  completion  "
 text CsB " items covered (policy complete-v1"
 text CsC ", enforced by --complete)\n"
 text CsD "; --complete makes it the exit status)\n"
+text CsE " items covered, "
+text CsF " excluded by manifest "
+text CsG " (policy complete-v1"
 
 fn csline to void
 bs CsA
@@ -553,7 +698,15 @@ bc 32
 bu get Ccov 0
 bs CmF
 bu get Cden 0
+if gt get Exn 0 0
+bs CsE
+bu get Cexc 0
+bs CsF
+exhex 4
+bs CsG
+else
 bs CsB
+end
 if eq get Cpl 0 1
 bs CsC
 else

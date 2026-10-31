@@ -1,0 +1,365 @@
+note babel 75-exclude: the --exclude manifest. One "<path> <reason>" per line; blank lines and lines
+note starting with # are ignored. <path> is relative to the walked root and is an exact path or a
+note directory prefix (a trailing / is optional); globs are refused. A matched walked file or skipped
+note entry stays in the completion denominator with verdict EXCLUDED and the manifest's reason.
+note Source babel recognises (and so every split item) can never be excluded, hidden or symlinked or
+note not. A line without a reason, an entry that matches nothing, a glob or an entry that names source
+note is diagnosed with its line number, and babel exits 2 before writing anything.
+global Ex0 ulong 1
+global Exn ulong 1
+global Exa0 ulong 1
+global Exan ulong 1
+global Exr0 ulong 1
+global Exrn ulong 1
+global Exh uchar 32
+note entries: path Me0/Men, reason Mr0/Mrn (pool), manifest line Mln, matches Mht
+global Me0 ulong 256
+global Men ulong 256
+global Mr0 ulong 256
+global Mrn ulong 256
+global Mln ulong 256
+global Mht ulong 256
+global Nme ulong 1
+note per walked file / skipped entry: matching entry + 1 (0 none)
+global Fex ulong 2048
+global Skx ulong 2048
+note the manifest itself when it lies in the walked tree: file index + 1, skipped index + 1
+global Mfi ulong 1
+global Msk ulong 1
+global Nexe ulong 1
+text EMh "babel: --exclude "
+text EMl " line "
+text EMc ": "
+text EMa " -> "
+text EMrd "cannot be read"
+text EMcp "has more than 256 entries"
+text EMnr "entry has no reason (each line is <path> <reason>): "
+text EMgl "globs are not supported (an exact path or a dir/ prefix): "
+text EMst "entry matches nothing in the walked tree (stale manifest): "
+text EMsr "entry names source babel splits, which cannot be excluded: "
+
+note --exclude given: read, hash, parse and match the manifest against the walk of root Pl[d, d+dn);
+note false after reporting every problem
+fn exload d ulong dn ulong to bool
+put Nexe 0 0
+if eq get Exn 0 0
+ret true
+end
+m = mark
+absob get Ex0 0 get Exn 0
+put Exa0 0 psave m sub mark m
+put Exan 0 sub mark m
+e = mark
+r = hfile m e
+if ge r 0
+for i ulong 32
+put Exh i get Hash i
+end
+r = rfile m e
+end
+reset m
+if lt r 0
+exdiag 0 EMrd 0 0
+ret false
+end
+exrel d dn
+if not exparse
+exdiag 0 EMcp 0 0
+ret false
+end
+exmatch
+ret eq get Nexe 0 0
+end
+
+note the manifest's path relative to the walked root Pl[d, d+dn), when it lies inside it (else Exrn 0)
+fn exrel d ulong dn ulong to void
+put Exrn 0 0
+a = get Exa0 0
+an = get Exan 0
+if le an add dn 1
+ret
+end
+if not pleq a dn d dn
+ret
+end
+if ne get Pl add a dn 47
+ret
+end
+put Exr0 0 add a add dn 1
+put Exrn 0 sub an add dn 1
+end
+
+note split Fb[0, Fn) into lines; false when the entry table is full
+fn exparse to bool
+put Nme 0 0
+n = get Fn 0
+s = ulong 0
+lno = ulong 1
+while lt s n bound 999999
+k = s
+while lt k n bound 999999
+if eq get Fb k 10
+break
+end
+k = add k 1
+end
+if not exline s k lno
+ret false
+end
+s = add k 1
+lno = add lno 1
+end
+ret true
+end
+
+fn exws c uchar to bool
+if eq c 32
+ret true
+end
+if eq c 9
+ret true
+end
+ret eq c 13
+end
+
+note one line Fb[a, b): trimmed, comment or blank skipped, else <path> and <reason> recorded
+fn exline a ulong b ulong lno ulong to bool
+s = a
+while lt s b bound 999999
+if not exws get Fb s
+break
+end
+s = add s 1
+end
+e = b
+while gt e s bound 999999
+if not exws get Fb sub e 1
+break
+end
+e = sub e 1
+end
+if ge s e
+ret true
+end
+if eq get Fb s 35
+ret true
+end
+p = s
+while lt p e bound 999999
+if exws get Fb p
+break
+end
+p = add p 1
+end
+q = p
+while lt q e bound 999999
+if not exws get Fb q
+break
+end
+q = add q 1
+end
+ret exadd s p q e lno
+end
+
+note record entry path Fb[s, p) ("./" prefix and trailing "/" removed) and reason Fb[q, e)
+fn exadd s ulong p ulong q ulong e ulong lno ulong to bool
+i = get Nme 0
+if ge i 256
+ret false
+end
+a = s
+if gt sub p a 2
+if eq get Fb a 46
+if eq get Fb add a 1 47
+a = add a 2
+end
+end
+end
+z = p
+while gt sub z a 1 bound 4096
+if ne get Fb sub z 1 47
+break
+end
+z = sub z 1
+end
+m = mark
+bfb a sub z a
+put Me0 i psave m sub mark m
+put Men i sub mark m
+reset m
+bfb q sub e q
+put Mr0 i psave m sub mark m
+put Mrn i sub mark m
+reset m
+put Mln i lno
+put Mht i 0
+put Nme 0 add i 1
+ret true
+end
+
+note match every entry against the walked files and the skipped entries
+fn exmatch to void
+put Mfi 0 0
+put Msk 0 0
+for f ulong get Nf 0
+put Fex f 0
+if gt get Exrn 0 0
+if pleq get F0 f get Fl f get Exr0 0 get Exrn 0
+put Mfi 0 add f 1
+end
+end
+end
+for i ulong get Nsk 0
+put Skx i 0
+if gt get Exrn 0 0
+if pleq get Sk0 i get Skl i get Exr0 0 get Exrn 0
+put Msk 0 add i 1
+end
+end
+end
+for e ulong get Nme 0
+exent e
+end
+end
+
+fn exent e ulong to void
+if eq get Mrn e 0
+exdiag add e 1 EMnr 0 0
+ret
+end
+if exglob e
+exdiag add e 1 EMgl 0 0
+ret
+end
+for f ulong get Nf 0
+if exhit e get F0 f get Fl f
+exfile e f
+end
+end
+for i ulong get Nsk 0
+if exhit e get Sk0 i get Skl i
+exsk e i
+end
+end
+if eq get Mht e 0
+exdiag add e 1 EMst 0 0
+end
+end
+
+note entry e covers walked file f, unless f is source (diagnosed) or the manifest itself
+fn exfile e ulong f ulong to void
+put Mht e add get Mht e 1
+if ne get Flg f 0
+exdiag add e 1 EMsr get F0 f get Fl f
+ret
+end
+if eq get Mfi 0 add f 1
+ret
+end
+if eq get Fex f 0
+put Fex f add e 1
+end
+end
+
+note entry e covers skipped entry i, unless its name is source (hidden or symlinked source)
+fn exsk e ulong i ulong to void
+put Mht e add get Mht e 1
+if ne langof get Sk0 i get Skl i 0
+exdiag add e 1 EMsr get Sk0 i get Skl i
+ret
+end
+if eq get Msk 0 add i 1
+ret
+end
+if eq get Skx i 0
+put Skx i add e 1
+end
+end
+
+note path Pl[o, o+n) is the entry or lies below it
+fn exhit e ulong o ulong n ulong to bool
+a = get Me0 e
+k = get Men e
+if eq k 0
+ret false
+end
+if pleq o n a k
+ret true
+end
+if le n k
+ret false
+end
+if not pleq o k a k
+ret false
+end
+ret eq get Pl add o k 47
+end
+
+fn exglob e ulong to bool
+a = get Me0 e
+for i ulong get Men e
+c = get Pl add a i
+if eq c 42
+ret true
+end
+if eq c 63
+ret true
+end
+if eq c 91
+ret true
+end
+end
+ret false
+end
+
+note "babel: --exclude FILE[ line N]: <msg>[<entry>][ -> <path>]" on stderr; ln1 = entry index + 1 (0: whole file)
+fn exdiag ln1 ulong s view uchar * o ulong n ulong to void
+m = mark
+bs EMh
+bpl get Ex0 0 get Exn 0
+if gt ln1 0
+bs EMl
+bu get Mln sub ln1 1
+end
+bs EMc
+bs s
+if gt ln1 0
+e = sub ln1 1
+bpl get Me0 e get Men e
+end
+if gt n 0
+bs EMa
+bpl o n
+end
+bc 10
+flush 2 m
+put Nexe 0 add get Nexe 0 1
+end
+
+note first k bytes of the manifest's sha256 in hex
+fn exhex k ulong to void
+for i ulong k
+c = get Exh i
+bhex ulong shr c 4
+bhex ulong and c 15
+end
+end
+
+text CxA "{\"path\": "
+text CxB ", \"sha256\": \""
+text CxC "\", \"walked_as\": "
+text CxN "null"
+
+fn exjson to void
+if eq get Exn 0 0
+bs CxN
+ret
+end
+bs CxA
+bjq get Ex0 0 get Exn 0
+bs CxB
+exhex 32
+bs CxC
+bqnull get Exr0 0 get Exrn 0
+bc 125
+end

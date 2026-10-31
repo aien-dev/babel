@@ -4,32 +4,32 @@
       "children": [
         {
           "digest": "82d819b4d960abb324717c6363e7b2960f1b11d13ebfb86b6ffbc536237931f4",
-          "last_commit": "1337730",
+          "last_commit": "d2d4150",
           "name": "examples",
           "purpose": "sample input mixing S1 and unsupported code; complete/ is an all-S1 input for the --complete gat"
         },
         {
-          "digest": "a095ea2c71a414bcb9698d602171be782230f807994f462f378ab29737ce0daa",
-          "last_commit": "1337730",
+          "digest": "6dc617e1e9e92e9a42205c850c72b3bf4506ccac9b9ef81eac14a5b7c47bace0",
+          "last_commit": "45564f3",
           "name": "src",
           "purpose": "babel driver in Omega, compiled in file order by build.sh"
         },
         {
-          "digest": "80650e07dead6a4f23119a856a57f56268be9082599b1c49761ce9e8416168b5",
-          "last_commit": "1337730",
+          "digest": "751a47ee52b040849dee910d04299ccf6c42d6e7136d1af368e4f083a0ec8787",
+          "last_commit": "45564f3",
           "name": "tests",
           "purpose": "independent checks of babel output, incl. mutated-oracle negative control"
         }
       ],
-      "children_root": "sha256:7cb15e58e4e998efabd4eff0fb929df29b160efa5794032cf27c2e498a4dbb4c",
-      "compiled_at": "2026-10-31T00:30:03Z",
+      "children_root": "sha256:ea2829440ae17d7212557a9b46d75ed2199b4ca3d899140158ae6aef6f38935f",
+      "compiled_at": "2026-10-31T00:49:27Z",
       "compiler": "crumb-compile/1",
-      "digest": "sha256:b119c5e0a53a33e69a6fde43f29bd95f238e24b47ac21d2963659c99391103ae",
+      "digest": "sha256:6471bfe8aa05b8380145ec8023be3c047dbe8aa8b3169263f47112ca54199351",
       "evidence_files": 0,
       "evidence_root": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "files": 32,
-      "generated_at_commit": "133773074a9f418fdc6d8768b5cfcc6815d32fd0",
-      "source_tree": "sha256:cbbeda42e524acff91c2b1ea550f55e79e588cb3013035afd7504f083865c641"
+      "files": 33,
+      "generated_at_commit": "45564f352035e039f19d2060c7254ed8f36085f9",
+      "source_tree": "sha256:1b6ed3323de20b98035049d3f0f0d9f0b1f601ce556a0ee8391aca282dc21c43"
     }
   },
   "name": "babel",
